@@ -33,6 +33,7 @@ typedef struct Speed_profile {
 	bool switchoff;
 	bool slowdown;
 	bool speedup;
+	bool slowdown_switch;
 	uint16_t speed_slow;
 	uint16_t speed_fast;
 	uint32_t time_fast_init;
@@ -51,5 +52,6 @@ void AddTotAvg(uint16_t * io_pFloatAvgFilter,uint8_t * Index ,uint16_t  i_NewVal
 int8_t encode_read2( void );
 void display_time_menu(volatile uint32_t *timestamp,bool invert,uint8_t start, uint8_t ende);
 void update_proile_time(uint32_t *timevalue, int16_t change,uint32_t max_value);
+void init_profile_mod();
 
 #endif /* MAIN_H_ */

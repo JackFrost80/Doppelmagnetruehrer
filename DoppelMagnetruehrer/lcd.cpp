@@ -47,6 +47,7 @@
 #include "twi.h"
 #include "SD1306.h"
 #include <avr/interrupt.h>
+#include <util/delay.h>
 
 static const uint8_t ssd1306oled_font6x8 [] PROGMEM = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // sp
@@ -212,6 +213,28 @@ void lcd_home(void){
 	lcd_gotoxy(0, 0);
 }
 
+void PCA_config()
+{
+	uint8_t data_[2];
+	data_[0] = config_register;
+	data_[1] = 0;
+	twi_write(&TWIE,data_,PCA_I2C_ADDR,DATA,2,0,1,0);
+}
+
+void lcd_reset()
+{
+	uint8_t data_[2];
+	//data[0] = 0x82; // PCA address
+	data_[0] = Output_register;
+	data_[1] = 0;
+	twi_write(&TWIE,data_,PCA_I2C_ADDR,DATA,2,0,1,0);
+	_delay_ms(1);
+	
+	data_[1] = (1<<0);
+	twi_write(&TWIE,data_,PCA_I2C_ADDR,DATA,2,0,1,0);
+	
+}
+
 
 
 void lcd_init(uint8_t dispAttr){
@@ -220,34 +243,34 @@ void lcd_init(uint8_t dispAttr){
 		SSD1306_SETDISPLAYCLOCKDIV,           // 0xD5
 		0x80,                                 // the suggested ratio 0x80
 		SSD1306_SETMULTIPLEX }; // 0xA8
-	twi_write(&TWIE,init1,LCD_I2C_ADDR,COMMAND,4,0,0);
+	twi_write(&TWIE,init1,LCD_I2C_ADDR,COMMAND,4,0,0,1);
 	uint8_t helper = SSD1306_LCDHEIGHT - 1;
-	twi_write(&TWIE,&helper,LCD_I2C_ADDR,COMMAND,1,0,0);
+	twi_write(&TWIE,&helper,LCD_I2C_ADDR,COMMAND,1,0,0,1);
 	uint8_t init2[] = {
 		SSD1306_SETDISPLAYOFFSET,             // 0xD3
 		0x0,                                  // no offset
 		SSD1306_SETSTARTLINE | 0x0,           // line #0
 		SSD1306_CHARGEPUMP }; // 0x8D
-	twi_write(&TWIE,init2,LCD_I2C_ADDR,COMMAND,4,0,0);
+	twi_write(&TWIE,init2,LCD_I2C_ADDR,COMMAND,4,0,0,1);
 	helper = (dispAttr == SSD1306_EXTERNALVCC) ? 0x10 : 0x14;
-	twi_write(&TWIE,&helper,LCD_I2C_ADDR,COMMAND,1,0,0);
+	twi_write(&TWIE,&helper,LCD_I2C_ADDR,COMMAND,1,0,0,1);
 	uint8_t init3[] = {
 		SSD1306_MEMORYMODE,                   // 0x20
 		0x00,                                 // 0x0 act like ks0108
 		SSD1306_SEGREMAP | 0x1,
 		SSD1306_COMSCANDEC };
-	twi_write(&TWIE,init3,LCD_I2C_ADDR,COMMAND,4,0,0);
+	twi_write(&TWIE,init3,LCD_I2C_ADDR,COMMAND,4,0,0,1);
 	uint8_t init4b[] = {
 		SSD1306_SETCOMPINS,                 // 0xDA
 		0x12,
 	SSD1306_SETCONTRAST };              // 0x81
-	twi_write(&TWIE,init4b,LCD_I2C_ADDR,COMMAND,3,0,0);
+	twi_write(&TWIE,init4b,LCD_I2C_ADDR,COMMAND,3,0,0,1);
 	helper = (dispAttr == SSD1306_EXTERNALVCC) ? 0x9F : 0xCF;
-	twi_write(&TWIE,&helper,LCD_I2C_ADDR,COMMAND,1,0,0);
+	twi_write(&TWIE,&helper,LCD_I2C_ADDR,COMMAND,1,0,0,1);
 	helper = SSD1306_SETPRECHARGE; // 0xd9
-	twi_write(&TWIE,&helper,LCD_I2C_ADDR,COMMAND,1,0,0);
+	twi_write(&TWIE,&helper,LCD_I2C_ADDR,COMMAND,1,0,0,1);
 	helper = (dispAttr == SSD1306_EXTERNALVCC) ? 0x22 : 0xF1;
-	twi_write(&TWIE,&helper,LCD_I2C_ADDR,COMMAND,1,0,0);
+	twi_write(&TWIE,&helper,LCD_I2C_ADDR,COMMAND,1,0,0,1);
 	uint8_t  init5[] = {
 		SSD1306_SETVCOMDETECT,               // 0xDB
 		0x40,
@@ -255,7 +278,7 @@ void lcd_init(uint8_t dispAttr){
 		SSD1306_NORMALDISPLAY,               // 0xA6
 		SSD1306_DEACTIVATE_SCROLL,
 		SSD1306_DISPLAYON }; // Main screen turn on
-	twi_write(&TWIE,init5,LCD_I2C_ADDR,COMMAND,6,0,0);
+	twi_write(&TWIE,init5,LCD_I2C_ADDR,COMMAND,6,0,0,1);
 	lcd_clrscr();
 }
 
@@ -279,13 +302,13 @@ void lcd_gotoxy(uint8_t x, uint8_t y){
 	helper[1] = 0x21;		// set column start	
 	helper[2] = x; 			// to x
 	helper[3] = 0x7f;		// set column end to 127
-	twi_write(&TWIE,helper,LCD_I2C_ADDR,0x00,4,0,0);  // Write data to I2C
+	twi_write(&TWIE,helper,LCD_I2C_ADDR,0x00,4,0,0,1);  // Write data to I2C
 }
 void lcd_clrscr(void){
     lcd_home();
 	uint8_t helper = 0x00 ;
 	for(uint8_t i=0;i<8;i++)
-		twi_write(&TWIE,&helper,LCD_I2C_ADDR,0x40,128,1,0);
+		twi_write(&TWIE,&helper,LCD_I2C_ADDR,0x40,128,1,0,1);
 	lcd_home();
 }
 void lcd_putc(char c){
@@ -306,7 +329,7 @@ void lcd_putc(char c){
 		{
 			data[i] = pgm_read_byte(&ssd1306oled_font6x8[c * 6 + i]);	// print font to ram, print 6 columns
 		}
-		twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0);
+		twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0,1);
 		return;
 	} 
 	switch (c) {
@@ -316,7 +339,7 @@ void lcd_putc(char c){
 			{
 				data[i] = pgm_read_byte(&ssd1306oled_font6x8[c * 6 + i]);	// print font to ram, print 6 columns
 			}
-			twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0);
+			twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0,1);
 			break;
 		case 150:
 			c = 99; // ö
@@ -324,7 +347,7 @@ void lcd_putc(char c){
 			{
 				data[i] = pgm_read_byte(&ssd1306oled_font6x8[c * 6 + i]);	// print font to ram, print 6 columns
 			}
-			twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0);
+			twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0,1);
 			break;
 		case 144:
 			c = 101; // °
@@ -332,7 +355,7 @@ void lcd_putc(char c){
 			{
 				data[i] = pgm_read_byte(&ssd1306oled_font6x8[c * 6 + i]);	// print font to ram, print 6 columns
 			}
-			twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0);
+			twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0,1);
 			break;
 		case 132:
 			c = 97; // ä
@@ -340,7 +363,7 @@ void lcd_putc(char c){
 			{
 				data[i] = pgm_read_byte(&ssd1306oled_font6x8[c * 6 + i]);	// print font to ram, print 6 columns
 			}
-			twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0);
+			twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0,1);
 			break;
 		case 127:
 			c = 102; // ß
@@ -348,7 +371,7 @@ void lcd_putc(char c){
 			{
 				data[i] = pgm_read_byte(&ssd1306oled_font6x8[c * 6 + i]);	// print font to ram, print 6 columns
 			}
-			twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0);
+			twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0,1);
 			break;
 		case 124:
 			c = 96; // Ü
@@ -356,7 +379,7 @@ void lcd_putc(char c){
 			{
 				data[i] = pgm_read_byte(&ssd1306oled_font6x8[c * 6 + i]);	// print font to ram, print 6 columns
 			}
-			twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0);
+			twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0,1);
 			break;
 		case 118:
 			c = 100; // Ö
@@ -364,7 +387,7 @@ void lcd_putc(char c){
 			{
 				data[i] = pgm_read_byte(&ssd1306oled_font6x8[c * 6 + i]);	// print font to ram, print 6 columns
 			}
-			twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0);
+			twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0,1);
 			break;
 		case 100:
 			c = 98; // Ä
@@ -372,7 +395,7 @@ void lcd_putc(char c){
 			{
 				data[i] = pgm_read_byte(&ssd1306oled_font6x8[c * 6 + i]);	// print font to ram, print 6 columns
 			}
-			twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0);
+			twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0,1);
 			break;
 		default:
 			break;
@@ -398,7 +421,7 @@ void lcd_putc_invert(char c){
 		{
 			data[i] = (pgm_read_byte(&ssd1306oled_font6x8[c * 6 + i]))^0xff;	// print font to ram, print 6 columns
 		}
-		twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0);
+		twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0,1);
 		return;
 	}
 	switch (c) {
@@ -408,7 +431,7 @@ void lcd_putc_invert(char c){
 		{
 			data[i] = pgm_read_byte(&ssd1306oled_font6x8[c * 6 + i]);	// print font to ram, print 6 columns
 		}
-		twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0);
+		twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0,1);
 		break;
 		case 150:
 		c = 99; // ö
@@ -416,7 +439,7 @@ void lcd_putc_invert(char c){
 		{
 			data[i] = pgm_read_byte(&ssd1306oled_font6x8[c * 6 + i]);	// print font to ram, print 6 columns
 		}
-		twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0);
+		twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0,1);
 		break;
 		case 144:
 		c = 101; // °
@@ -424,7 +447,7 @@ void lcd_putc_invert(char c){
 		{
 			data[i] = pgm_read_byte(&ssd1306oled_font6x8[c * 6 + i]);	// print font to ram, print 6 columns
 		}
-		twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0);
+		twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0,1);
 		break;
 		case 132:
 		c = 97; // ä
@@ -432,7 +455,7 @@ void lcd_putc_invert(char c){
 		{
 			data[i] = pgm_read_byte(&ssd1306oled_font6x8[c * 6 + i]);	// print font to ram, print 6 columns
 		}
-		twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0);
+		twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0,1);
 		break;
 		case 127:
 		c = 102; // ß
@@ -440,7 +463,7 @@ void lcd_putc_invert(char c){
 		{
 			data[i] = pgm_read_byte(&ssd1306oled_font6x8[c * 6 + i]);	// print font to ram, print 6 columns
 		}
-		twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0);
+		twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0,1);
 		break;
 		case 124:
 		c = 96; // Ü
@@ -448,7 +471,7 @@ void lcd_putc_invert(char c){
 		{
 			data[i] = pgm_read_byte(&ssd1306oled_font6x8[c * 6 + i]);	// print font to ram, print 6 columns
 		}
-		twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0);
+		twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0,1);
 		break;
 		case 118:
 		c = 100; // Ö
@@ -456,7 +479,7 @@ void lcd_putc_invert(char c){
 		{
 			data[i] = pgm_read_byte(&ssd1306oled_font6x8[c * 6 + i]);	// print font to ram, print 6 columns
 		}
-		twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0);
+		twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0,1);
 		break;
 		case 100:
 		c = 98; // Ä
@@ -464,7 +487,7 @@ void lcd_putc_invert(char c){
 		{
 			data[i] = pgm_read_byte(&ssd1306oled_font6x8[c * 6 + i]);	// print font to ram, print 6 columns
 		}
-		twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0);
+		twi_write(&TWIE,data,LCD_I2C_ADDR,DATA,6,0,0,1);
 		break;
 		default:
 		break;

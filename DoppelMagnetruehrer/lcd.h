@@ -70,12 +70,19 @@
 
 /* TODO: setup i2c/twi */
 #define LCD_I2C_ADDR	0x78	// refer lcd-manual, 0x78 for 8-bit-adressmode, 0x3c for 7-bit-adressmode
+#define PCA_I2C_ADDR	0x82
 
 #define LCD_DISP_OFF	0xAE
 #define LCD_DISP_ON		0xAF
 
+#define Output_register 0x01;
+#define config_register 0x03;
+
+
 void lcd_init(uint8_t dispAttr);
 void lcd_home(void);
+void lcd_reset();
+void PCA_config();
 
 void lcd_command(uint8_t cmd);				// transmit command to display
 void lcd_data(uint8_t data);				// transmit data to display

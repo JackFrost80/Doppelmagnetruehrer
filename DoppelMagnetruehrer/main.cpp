@@ -15,6 +15,16 @@
 #include "lcd.h"
 #include "twi.h"
 #include "main.h"
+#include "FRAM.h"
+#include "CRC.h"
+
+extern "C"
+{
+	#include "usb_cdc.h"
+}
+
+
+
 #define CLK_Prescaler 0x00
 #define PLL_Faktor 16
 #define CPU_SPEED 32000000UL
@@ -41,7 +51,7 @@
 #define Frequenz_0_5Hz 0x10
 
 #define profile_size sizeof(Speed_profile_t)
-#define max_profile_time 2UL*86400UL
+#define max_profile_time 4UL*86400UL
 
 
 
@@ -82,6 +92,8 @@ uint8_t profile_ID_b EEMEM = 0;
 bool show_menu = false;
 bool screen_clear = false;
 Menu_t menu = {0,0};
+uint32_t runtime_a = 0;
+uint32_t runtime_b = 0;
 
 
 bool end_a = false;
@@ -91,6 +103,14 @@ uint16_t RPM_b_raw[16] = {0};
 uint8_t IndexNextValue_b=0;
 uint16_t RPM_a_raw[16] = {0};
 uint8_t IndexNextValue_a=0;
+
+uint8_t empfangene_Bytes[12];
+uint8_t Echo=0;
+uint8_t Dauerantwort=0;
+
+Speed_profile_t profile_mod;
+p_Speed_profile_t p_profile_mod = &profile_mod;
+uint8_t ID_mod = 0;
 
 
 ISR(RTC_OVF_vect)
@@ -376,10 +396,368 @@ void Blink_LED(PORT_t* port,uint8_t Pin_blink ,uint8_t Takt, uint8_t Frequenz)
 	port->OUTTGL = 1<<Pin_blink;
 }
 
+void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *int_buffer,uint8_t *old_position_,uint8_t *ID_,bool *screen_clear_)
+{
+	
+	static bool reload = true;
+	if(reload)
+	{
+		reload = false;
+		read_profile(p_profile_,*ID_+4);
+		
+		if(p_profile_->CRC_value != calculate_crc32_checksum((unsigned char *)p_profile_,sizeof(Speed_profile_t)-4))
+			init_profile_mod();
+	}
+	static bool change = false;
+	if(*screen_clear_)
+	{
+		*screen_clear_ = false;
+		lcd_clrscr();
+		lcd_gotoxy(1,0);
+		lcd_puts("Profil bearbeiten");
+		lcd_gotoxy(1,1);
+		lcd_puts("ID :");
+		if(*ID_ <100)
+			lcd_puts(" ");
+		if(*ID_ <10)
+			lcd_puts(" ");
+		utoa(*ID_,int_buffer,10);
+		lcd_puts(int_buffer);
+		lcd_gotoxy(1,2);
+		lcd_puts("Typ: ");
+		if(p_profile_->type == type_normal)
+		lcd_puts("normal");
+		if(p_profile_->type == type_switch)
+		lcd_puts("wechselnd");
+		if(p_profile_->type == type_stop)
+		lcd_puts("sedimentieren");
+		lcd_gotoxy(1,3);
+		lcd_puts("Langsam: ");
+		utoa(p_profile_->speed_slow,int_buffer,10);
+		lcd_puts(int_buffer);
+		lcd_puts(" UpM");
+		lcd_gotoxy(1,4);
+		lcd_puts("Schnell: ");
+		utoa(p_profile_->speed_fast,int_buffer,10);
+		lcd_puts(int_buffer);
+		lcd_puts(" UpM");
+		lcd_gotoxy(1,5);
+		lcd_puts("t schnell ");
+		display_time_menu(&p_profile_->time_fast_init,false,0,0);
+		lcd_gotoxy(1,6);
+		lcd_puts("t Gesamt  ");
+		display_time_menu(&p_profile_->total_time,false,0,0);
+		lcd_gotoxy(1,7);
+		lcd_puts("t langsam ");
+		display_time_menu(&p_profile_->time_slow,false,0,0);
+	}
+	if(menu.sub_menu >0)
+	{
+		switch(menu.sub_menu)
+		{
+			case 0x10:
+			{
+				*ID_ += encode_read2();
+				lcd_gotoxy(1,1);
+				lcd_puts("ID :");
+				if(*ID_ <100)
+					lcd_puts(" ");
+				if(*ID_ <10)
+					lcd_puts(" ");
+				utoa(*ID_,int_buffer,10);
+				lcd_puts_invert(int_buffer);
+				if( get_key_short( 1<<KEY0 ))
+				{
+					reload = true;
+					*screen_clear_ = true;
+					*position_ = 1;
+					*old_position_ = 2;
+					menu.sub_menu = 0;
+				}
+				
+			}
+			break;
+			case 0x20:
+			{
+				p_profile_->type += encode_read2();
+				if(p_profile_->type==255)
+				p_profile_->type = 2;
+				p_profile_->type %=3;
+				lcd_gotoxy(1,2);
+				lcd_puts("Typ: ");
+				if(p_profile_->type == type_normal)
+				lcd_puts_invert("normal");
+				if(p_profile_->type == type_switch)
+				lcd_puts_invert("wechselnd");
+				if(p_profile_->type == type_stop)
+				lcd_puts_invert("sedimentieren");
+				if( get_key_short( 1<<KEY0 ))
+				{
+					lcd_gotoxy(1,2);
+					lcd_puts("Typ: ");
+					if(p_profile_->type == type_normal)
+					lcd_puts("normal");
+					if(p_profile_->type == type_switch)
+					lcd_puts("wechselnd");
+					if(p_profile_->type == type_stop)
+					lcd_puts("sedimentieren");
+					
+					*position_ = 2;
+					*old_position_ = 1;
+					menu.sub_menu = 0;
+				}
+				
+			}
+			break;
+			case 0x30:
+			{
+				p_profile_->speed_slow += encode_read2() * 10;
+				lcd_gotoxy(10,3);
+				if(p_Profile_a->speed_slow <10)
+				lcd_puts(" ");
+				if(p_profile_->speed_slow <100)
+				lcd_puts(" ");
+				if(p_profile_->speed_slow <1000)
+				lcd_puts(" ");
+				utoa(p_profile_->speed_slow,int_buffer,10);
+				lcd_puts_invert(int_buffer);
+				lcd_puts(" UpM");
+				if( get_key_short( 1<<KEY0 ))
+				{
+					lcd_gotoxy(10,3);
+					if(p_profile_->speed_slow <10)
+					lcd_puts(" ");
+					if(p_profile_->speed_slow <100)
+					lcd_puts(" ");
+					if(p_profile_->speed_slow <1000)
+					lcd_puts(" ");
+					utoa(p_profile_->speed_slow,int_buffer,10);
+					lcd_puts(int_buffer);
+					lcd_puts(" UpM");
+					*position_ = 3;
+					*old_position_ = 2;
+					menu.sub_menu = 0;
+				}
+				
+				
+			}
+			break;
+			case 0x40:
+			{
+				p_profile_->speed_fast += encode_read2() * 10;
+				lcd_gotoxy(10,4);
+				if(p_profile_->speed_fast <10)
+				lcd_puts(" ");
+				if(p_profile_->speed_fast <100)
+				lcd_puts(" ");
+				if(p_profile_->speed_fast <1000)
+				lcd_puts(" ");
+				utoa(p_profile_->speed_fast,int_buffer,10);
+				lcd_puts_invert(int_buffer);
+				lcd_puts(" UpM");
+				if( get_key_short( 1<<KEY0 ))
+				{
+					lcd_gotoxy(10,4);
+					if(p_profile_->speed_fast <10)
+					lcd_puts(" ");
+					if(p_profile_->speed_fast <100)
+					lcd_puts(" ");
+					if(p_profile_->speed_fast <1000)
+					lcd_puts(" ");
+					utoa(p_profile_->speed_fast,int_buffer,10);
+					lcd_puts(int_buffer);
+					lcd_puts(" UpM");
+					*position_ = 4;
+					*old_position_ = 2;
+					menu.sub_menu = 0;
+				}
+				
+				
+			}
+			break;
+			case 0x50:
+			{
+				
+				update_proile_time(&p_profile_->time_fast_init,encode_read2() * 3600,max_profile_time);
+				//p_Profile_a->time_fast_init += encode_read2() * 3600;
+				lcd_gotoxy(11,5);
+				display_time_menu(&p_profile_->time_fast_init,true,0,1);
+				if( get_key_short( 1<<KEY0 ))
+				{
+					lcd_gotoxy(11,5);
+					display_time_menu(&p_profile_->time_fast_init,false,0,0);
+					
+					menu.sub_menu = 0x51;
+				}
+				
+				
+			}
+			break;
+			case 0x51:
+			{
+				update_proile_time(&p_profile_->time_fast_init,encode_read2() * 60,max_profile_time);
+				//p_Profile_a->time_fast_init += encode_read2() * 60;
+				lcd_gotoxy(11,5);
+				display_time_menu(&p_profile_->time_fast_init,true,3,4);
+				if( get_key_short( 1<<KEY0 ))
+				{
+					lcd_gotoxy(11,5);
+					display_time_menu(&p_profile_->time_fast_init,false,0,0);
+					
+					menu.sub_menu = 0x52;
+				}
+				
+				
+			}
+			break;
+			case 0x52:
+			{
+				update_proile_time(&p_profile_->time_fast_init,encode_read2(),max_profile_time);
+				//p_Profile_a->time_fast_init += encode_read2() ;
+				lcd_gotoxy(11,5);
+				display_time_menu(&p_profile_->time_fast_init,true,6,7);
+				if( get_key_short( 1<<KEY0 ))
+				{
+					lcd_gotoxy(11,5);
+					display_time_menu(&p_profile_->time_fast_init,false,0,0);
+					*position_ = 5;
+					*old_position_ = 2;
+					menu.sub_menu = 0x00;
+				}
+				
+				
+			}
+			break;
+			case 0x60:
+			{
+				update_proile_time(&p_profile_->total_time,encode_read2() * 3600,max_profile_time);
+				//p_Profile_a->total_time += encode_read2() * 3600;
+				lcd_gotoxy(11,6);
+				display_time_menu(&p_profile_->total_time,true,0,1);
+				if( get_key_short( 1<<KEY0 ))
+				{
+					lcd_gotoxy(11,6);
+					display_time_menu(&p_profile_->total_time,false,0,0);
+					
+					menu.sub_menu = 0x61;
+				}
+				
+				
+			}
+			break;
+			case 0x61:
+			{
+				
+				update_proile_time(&p_profile_->total_time,encode_read2() * 60,max_profile_time);
+				//p_Profile_a->total_time += encode_read2() * 3600;
+				lcd_gotoxy(11,6);
+				display_time_menu(&p_profile_->total_time,true,3,4);
+				if( get_key_short( 1<<KEY0 ))
+				{
+					lcd_gotoxy(11,6);
+					display_time_menu(&p_profile_->total_time,false,0,0);
+					
+					menu.sub_menu = 0x62;
+				}
+				
+				
+			}
+			break;
+			case 0x62:
+			{
+				
+				update_proile_time(&p_Profile_a->total_time,encode_read2(),max_profile_time);
+				//p_Profile_a->total_time += encode_read2() * 3600;
+				lcd_gotoxy(11,6);
+				display_time_menu(&p_profile_->total_time,true,6,7);
+				if( get_key_short( 1<<KEY0 ))
+				{
+					lcd_gotoxy(11,6);
+					display_time_menu(&p_profile_->total_time,false,0,0);
+					*position_ = 6;
+					*old_position_ = 2;
+					menu.sub_menu = 0x00;
+				}
+				
+				
+			}
+			break;
+			case 0x70:
+			{
+				
+				update_proile_time(&p_profile_->time_slow,encode_read2() * 3600,max_profile_time);
+				//p_Profile_a->total_time += encode_read2() * 3600;p_Profile_a->time_slow += encode_read2() * 3600;
+				lcd_gotoxy(11,7);
+				display_time_menu(&p_profile_->time_slow,true,0,1);
+				if( get_key_short( 1<<KEY0 ))
+				{
+					lcd_gotoxy(11,7);
+					display_time_menu(&p_profile_->time_slow,false,0,0);
+					
+					menu.sub_menu = 0x71;
+				}
+				
+				
+			}
+			break;
+			case 0x71:
+			{
+				
+				update_proile_time(&p_Profile_a->time_slow,encode_read2() * 60,max_profile_time);
+				//p_Profile_a->total_time += encode_read2() * 3600;p_Profile_a->time_slow += encode_read2() * 3600;
+				lcd_gotoxy(11,7);
+				display_time_menu(&p_profile_->time_slow,true,3,4);
+				if( get_key_short( 1<<KEY0 ))
+				{
+					lcd_gotoxy(11,7);
+					display_time_menu(&p_profile_->time_slow,false,0,0);
+					
+					menu.sub_menu = 0x72;
+				}
+				
+				
+			}
+			break;
+			case 0x72:
+			{
+				
+				update_proile_time(&p_profile_->time_slow,encode_read2(),max_profile_time);
+				//p_Profile_a->total_time += encode_read2() * 3600;p_Profile_a->time_slow += encode_read2() * 3600;
+				lcd_gotoxy(11,7);
+				display_time_menu(&p_profile_->time_slow,true,6,7);
+				if( get_key_short( 1<<KEY0 ))
+				{
+					lcd_gotoxy(11,7);
+					display_time_menu(&p_profile_->time_slow,false,0,0);
+					*position_ = 7;
+					*old_position_ = 2;
+					menu.sub_menu = 0x00;
+				}
+				
+				
+			}
+			break;
+			default:
+			break;
+		}
+	}
+}
+
 void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profile_,uint8_t *old_position_,bool left_,bool *screen_clear_)
 {
 
 	static bool change = false;
+	static bool reload = true;
+	static uint8_t ID_ = 0;
+	if(reload)
+	{
+		reload = false;
+		read_profile(p_profile_,ID_+4);
+		if(p_profile_->CRC_value != calculate_crc32_checksum((unsigned char *)p_profile_,sizeof(Speed_profile_t)-4))
+			init_profile_mod();
+		
+	}
+	
 	if(*screen_clear_)
 	{
 		*screen_clear_ = false;
@@ -391,6 +769,10 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 			lcd_puts("Profil rechts");
 		lcd_gotoxy(1,1);
 		lcd_puts("ID :");
+		if(p_profile_->ID <100)
+			lcd_puts(" ");
+		if(p_profile_->ID <10)
+			lcd_puts(" ");
 		utoa(p_profile_->ID,int_buffer,10);
 		lcd_puts(int_buffer);
 		lcd_gotoxy(1,2);
@@ -425,6 +807,60 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 	{
 		switch(menu.sub_menu)
 		{
+			case 0x10:
+			{
+				ID_ += encode_read2();
+				lcd_gotoxy(1,1);
+				lcd_puts("ID :");
+				if(p_profile_->ID <100)
+					lcd_puts(" ");
+				if(p_profile_->ID <10)
+					lcd_puts(" ");
+				utoa(ID_,int_buffer,10);
+				lcd_puts_invert(int_buffer);
+				if( get_key_short( 1<<KEY0 ))
+				{
+					reload = true;
+					*screen_clear_ = true;
+					*position_ = 1;
+					*old_position_ = 2;
+					menu.sub_menu = 0;
+				}
+				
+			}
+			break;
+			case 0x20:
+			{
+				p_profile_->type += encode_read2();
+				if(p_profile_->type==255)
+					p_profile_->type = 2;
+				p_profile_->type %=3;
+				lcd_gotoxy(1,2);
+				lcd_puts("Typ: ");
+				if(p_profile_->type == type_normal)
+				lcd_puts_invert("normal");
+				if(p_profile_->type == type_switch)
+				lcd_puts_invert("wechselnd");
+				if(p_profile_->type == type_stop)
+				lcd_puts_invert("sedimentieren");
+				if( get_key_short( 1<<KEY0 ))
+				{
+					lcd_gotoxy(1,2);
+					lcd_puts("Typ: ");
+					if(p_profile_->type == type_normal)
+					lcd_puts("normal");
+					if(p_profile_->type == type_switch)
+					lcd_puts("wechselnd");
+					if(p_profile_->type == type_stop)
+					lcd_puts("sedimentieren");
+					
+					*position_ = 2;
+					*old_position_ = 1;
+					menu.sub_menu = 0;
+				}
+				
+			}
+			break;
 			case 0x30:
 			{
 				p_profile_->speed_slow += encode_read2() * 10;
@@ -662,9 +1098,11 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 void Clock_Init(void)
 {
 	//Interner 2MHz Oszi
-	OSC.CTRL = OSC_RC2MEN_bm;
+	OSC.CTRL = OSC_RC2MEN_bm | OSC_RC32MEN_bm | OSC_RC32KEN_bm;
 	// Warten bis Oszillator stabil ist
 	while ((OSC.STATUS & OSC_RC2MRDY_bm) == 0);
+	while ((OSC.STATUS & OSC_RC32MRDY_bm) == 0);
+	while ((OSC.STATUS & OSC_RC32KRDY_bm) == 0);
 	// I/O Protection
 	CCP = CCP_IOREG_gc;
 	// Prescaler
@@ -672,14 +1110,18 @@ void Clock_Init(void)
 	// PLL Sorce und PLL Faktor
 	OSC.PLLCTRL = OSC_PLLSRC_RC2M_gc | (PLL_Faktor << OSC_PLLFAC_gp);
 	// PLL enable
-	OSC.CTRL = OSC_PLLEN_bm ;
+	OSC.CTRL |= OSC_PLLEN_bm ;
 	while ((OSC.STATUS & OSC_PLLRDY_bm) == 0);
 	// I/O Protection
 	CCP = CCP_IOREG_gc;
 	// System Clock selection
 	CLK.CTRL = CLK_SCLKSEL_PLL_gc;
 	// DFLL ein (Auto Kalibrierung)
-	//DFLLRC2M.CTRL = DFLL_ENABLE_bm;
+	OSC.DFLLCTRL = OSC_RC32MCREF_RC32K_gc;
+	CCP = CCP_IOREG_gc;
+	DFLLRC2M.CTRL = DFLL_ENABLE_bm;
+	CCP = CCP_IOREG_gc;
+	DFLLRC32M.CTRL = DFLL_ENABLE_bm;
 	
 }
 
@@ -701,6 +1143,46 @@ void RTC_Init(void)
 	RTC.INTCTRL = 0x03;
 	
 }
+
+//#pragma GCC optimize ("O1")
+void Config32MHzClock(void)
+{
+	unsigned char tmp;
+
+	// get USBRCOSC
+	NVM.CMD  = NVM_CMD_READ_CALIB_ROW_gc;
+	tmp = pgm_read_byte(offsetof(NVM_PROD_SIGNATURES_t, USBRCOSC));
+	NVM_CMD = NVM_CMD_NO_OPERATION_gc;  // Clean up NVM Command register.
+
+	// enable DFLL for 32MHz osz and trim to 48MHz sync with USB start of frame
+	OSC.DFLLCTRL = OSC_RC32MCREF_USBSOF_gc;
+	DFLLRC32M.CALB = tmp;
+	DFLLRC32M.COMP1 = 0x1B; //Xmega AU manual, 4.17.19
+	DFLLRC32M.COMP2 = 0xB7;
+	DFLLRC32M.CTRL = DFLL_ENABLE_bm;
+
+	// enable 32 MHZ osz (trimmed to 48MHZ for usb)
+	CCP = CCP_IOREG_gc; //Security Signature to modify clock
+	OSC.CTRL = OSC_RC32MEN_bm| OSC_RC2MEN_bm; // enable internal 32MHz oscillator
+	
+	while(!(OSC.STATUS & OSC_RC32MRDY_bm)); // wait for oscillator ready
+	
+	OSC.PLLCTRL = OSC_PLLSRC_RC2M_gc | 16; // 2MHz * 16 = 32MHz
+	
+	CCP = CCP_IOREG_gc;
+	OSC.CTRL = OSC_RC32MEN_bm | OSC_PLLEN_bm | OSC_RC2MEN_bm ; // Enable PLL
+	
+	while(!(OSC.STATUS & OSC_PLLRDY_bm)); // wait for PLL ready
+	
+	DFLLRC2M.CTRL = DFLL_ENABLE_bm;
+
+	// use PLL as systemclk
+	CCP = CCP_IOREG_gc; /* allow changing CLK.CTRL */
+	CLK.CTRL = CLK_SCLKSEL_PLL_gc; // use PLL output as system clock
+	//
+}
+
+//#pragma GCC optimize ("O0")
 
 void Timer_init()
 {
@@ -927,8 +1409,8 @@ uint16_t calc_voltage(uint16_t ADC_value)
 	return (uint16_t)helper;
 }
 
-int main(void)
-{  
+void init_profile_a()
+{
 	p_Profile_a->speed_fast = 1100;
 	p_Profile_a->speed_slow = 600;
 	p_Profile_a->total_time = 24UL * 3600UL;
@@ -938,9 +1420,17 @@ int main(void)
 	p_Profile_a->type = type_normal;
 	p_Profile_a->time_slow = 1UL * 3600UL;
 	p_Profile_a->slowdown = true;
+	p_Profile_a->slowdown_switch = false;
 	p_Profile_a->switchoff = false;
 	p_Profile_a->speedup = false;
-	Sollwert_RPM_a = p_Profile_a->speed_fast;
+	p_Profile_a->CRC_value = calculate_crc32_checksum((unsigned char *)p_Profile_a,sizeof(Speed_profile_t)-4);
+	write_profile(p_Profile_a,1);
+	
+	
+}
+
+void init_profile_b()
+{
 	p_Profile_b->time_fast_init = 2UL * 3600UL;
 	p_Profile_b->speed_fast = 1100;
 	p_Profile_b->speed_slow = 600;
@@ -951,18 +1441,40 @@ int main(void)
 	p_Profile_b->time_slow = 1UL * 3600UL;
 	p_Profile_b->slowdown = true;
 	p_Profile_b->switchoff = false;
+	p_Profile_b->slowdown_switch = false;
 	p_Profile_b->speedup = false;
-	Sollwert_RPM_a = p_Profile_a->speed_fast;
-	Sollwert_RPM_b = p_Profile_b->speed_fast;
+	p_Profile_b->CRC_value = calculate_crc32_checksum((unsigned char *)p_Profile_b,sizeof(Speed_profile_t)-4);
+	write_profile(p_Profile_b,2);
+	
+}
+
+void init_profile_mod()
+{
+	p_profile_mod->time_fast_init = 2UL * 3600UL;
+	p_profile_mod->speed_fast = 1100;
+	p_profile_mod->speed_slow = 600;
+	p_profile_mod->total_time = 24UL * 3600UL;
+	p_profile_mod->speed_time = 6UL * 10UL;
+	p_profile_mod->status = 0;
+	p_profile_mod->type = type_normal;
+	p_profile_mod->time_slow = 1UL * 3600UL;
+	p_profile_mod->slowdown = true;
+	p_profile_mod->switchoff = false;
+	p_profile_mod->slowdown_switch = false;
+	p_profile_mod->speedup = false;
+	p_profile_mod->CRC_value = calculate_crc32_checksum((unsigned char *)p_profile_mod,sizeof(Speed_profile_t)-4);
+	write_profile(p_Profile_b,ID_mod+4);
+	
+}
+
+int main(void)
+{  
 	uint16_t test = 0;
 	uint8_t position = 0;
 	bool update_display = true;
 	bool high_speed_a = true;
 	bool high_speed_b = false;
-	uint32_t next_change_a = Unixtimestamp + p_Profile_a->time_fast_init;
-	uint32_t end_time_a = Unixtimestamp + p_Profile_a->total_time;
-	uint32_t next_change_b = Unixtimestamp + p_Profile_b->time_fast_init;
-	uint32_t end_time_b = Unixtimestamp + p_Profile_b->total_time;
+	
 	uint8_t status_a = 0;
 	uint8_t status_b = 0;
 	bool change_a = false;
@@ -973,13 +1485,28 @@ int main(void)
 	uint8_t counter = 0;
 	uint32_t avg_voltage_a = 0;
 	uint32_t avg_voltage_b = 0;
-	Clock_Init();
+	RTC_Init();
+	usb_init();
+	Config32MHzClock();
+	//Clock_Init();
 	Timer_init();
+	
 	//ADCA_Cal();
 	ADCA_init();
-	RTC_Init();
+	
 	twi_init(&TWIE);
+	
 	encode_init();
+	// Variablen initieren
+	cdc_rxb.flag=1;   // Anfangszustände für Schreib-/Lesepuffer
+	cdc_rxb.len=0;
+	cdc_rxb.bytes=0;
+
+	cdc_txb.flag=0;
+	cdc_txb.len=0;
+	cdc_txb.bytes=0;
+	
+	
 	PORTC.PIN2CTRL = PORT_OPC_WIREDANDPULL_gc;
 	
 	PORTD.DIRSET = PIN0_bm | PIN1_bm;
@@ -998,10 +1525,26 @@ int main(void)
 	TCC0.CCB = 0xA5;
 	TCD0.CCA = 0x0;
 	TCD0.CCB = 0x0;
-	PORTC.OUTCLR = PIN2_bm;
-	_delay_ms(1);
-	PORTC.OUTSET = PIN2_bm;
-	_delay_ms(1);
+	//PORTC.OUTCLR = PIN2_bm;
+	//_delay_ms(1);
+	//PORTC.OUTSET = PIN2_bm;
+	//_delay_ms(1);
+	read_profile(p_Profile_a,1);
+	read_profile(p_Profile_b,2);
+	if(calculate_crc32_checksum((unsigned char *)p_Profile_a,sizeof(Speed_profile_t)-4) != p_Profile_a->CRC_value)
+		init_profile_a();
+	//if(p_Profile_a->speed_fast < 100)
+		
+	if(calculate_crc32_checksum((unsigned char *)p_Profile_b,sizeof(Speed_profile_t)-4) != p_Profile_b->CRC_value)
+		init_profile_b();
+	Sollwert_RPM_a = p_Profile_a->speed_fast;
+	Sollwert_RPM_b = p_Profile_b->speed_fast;
+	uint32_t next_change_a = Unixtimestamp + p_Profile_a->time_fast_init;
+	uint32_t end_time_a = Unixtimestamp + p_Profile_a->total_time;
+	uint32_t next_change_b = Unixtimestamp + p_Profile_b->time_fast_init;
+	uint32_t end_time_b = Unixtimestamp + p_Profile_b->total_time;
+	PCA_config();
+	lcd_reset();
 	lcd_init(0);
 	lcd_gotoxy(left,0);
 	char Str1[7];
@@ -1022,6 +1565,35 @@ int main(void)
 	
     while (1) 
     {
+		
+		EP_DEF_in(ep_out);          // Endpunkt-Tasks
+		EP_DEF_out(ep_in);
+		EP_DEF_out(ep_note);
+
+		if (cdc_rxb.bytes<cdc_rxb.len)    // Neue Bytes empfangen?
+		{
+			memcpy(empfangene_Bytes, cdc_rxb.data, cdc_rxb.len);  // aus Puffer lesen
+			cdc_rxb.bytes=cdc_rxb.len;    // als gelesen markieren
+			cdc_rxb.flag=1;          // dann später wieder auf neue Daten testen
+			
+			switch (empfangene_Bytes[0])  // erstes Byte betrachten
+			{  case 'A': ;   // LED toggeln
+				break;
+				case 'B':   Dauerantwort = ~Dauerantwort;  // Zustand toggeln
+				break;
+				default:  Echo=1;
+			}
+		}
+		
+		if (Echo==1)  // das Empfangene zurücksenden
+		{
+			cdc_txb.bytes=0;
+			memcpy(cdc_txb.data, empfangene_Bytes, cdc_rxb.len);
+			cdc_txb.len=cdc_rxb.len;  // ein Zeichen zu versenden
+			cdc_txb.flag=1; // versenden
+			Echo=0;
+		}
+		
 		// Switch on/off and Reset side a
 		if(!change_a)
 		{
@@ -1053,7 +1625,9 @@ int main(void)
 					status_a = 0;
 					end_a = false;
 					p_Profile_a->slowdown = true;
+					p_Profile_a->speedup = false;
 					p_Profile_a->switchoff = false;
+					runtime_a = 0;
 					
 				}
 		}
@@ -1089,7 +1663,9 @@ int main(void)
 				status_b = 0;
 				end_b = false;
 				p_Profile_b->slowdown = true;
-				p_Profile_a->switchoff = false;
+				p_Profile_b->speedup = false;
+				p_Profile_b->switchoff = false;
+				runtime_b = 0;
 				
 			}
 		}
@@ -1162,6 +1738,9 @@ int main(void)
 			
 		}
 		
+		
+		
+		
 		//automode changes of side a
 		if(running_a  && !hand_a)
 		{
@@ -1171,12 +1750,21 @@ int main(void)
 			Blink_LED(&PORTA,PIN6_bp,Blink,Frequenz_2Hz);
 			if(Unixtimestamp >= next_change_a)
 			{
-				if(p_Profile_a->type == type_normal)
+				if(p_Profile_a->type == type_normal  || p_Profile_a->type == type_stop)
 				{
 					if(p_Profile_a->switchoff)
 					{
 						end_a = true;
-						next_change_a = Unixtimestamp + p_Profile_a->speed_slow;
+						if(p_Profile_a->type == type_stop)
+						{
+							running_a = false;
+						}
+						else
+						{
+							next_change_a = Unixtimestamp + p_Profile_a->speed_slow;
+						}
+						
+						
 						
 					}
 					if(p_Profile_a->slowdown)
@@ -1190,12 +1778,105 @@ int main(void)
 					
 					
 				}
+				if(p_Profile_b->type == type_switch)
+				{
+					if(p_Profile_b->switchoff)
+					{
+						end_b = true;
+						if(p_Profile_b->type == type_stop)
+						{
+							running_b = false;
+						}
+						else
+						{
+							next_change_b = Unixtimestamp + p_Profile_b->speed_slow;
+						}
+						
+						
+						
+					}
+					if(p_Profile_b->speedup)
+					{
+						Sollwert_RPM_b = p_Profile_b->speed_fast;
+						p_Profile_b->speedup = false;
+						p_Profile_b->slowdown_switch = true;
+						p_Profile_b->slowdown = false;
+						p_Profile_b->switchoff = false;
+						cli();
+						next_change_b = Unixtimestamp + p_Profile_b->speed_time;
+						sei();
+						
+						
+						
+					}
+					if(p_Profile_a->slowdown_switch)
+					{
+						Sollwert_RPM_b = p_Profile_a->speed_slow;
+						running_b = p_Profile_a->time_fast_init;
+						uint32_t time_b_remaining = p_Profile_a->total_time - running_b;
+						if(time_b_remaining > (p_Profile_a->speed_time+p_Profile_a->time_slow))
+						{
+							cli();
+							next_change_b = Unixtimestamp + p_Profile_a->time_slow;
+							sei();
+							p_Profile_a->speedup = true;
+							p_Profile_a->slowdown = false;
+							p_Profile_a->switchoff = false;
+							
+						}
+						else
+						{
+							next_change_b = Unixtimestamp + time_b_remaining;
+							p_Profile_a->slowdown = false;
+							p_Profile_a->switchoff = true;
+							p_Profile_a->speedup = false;
+						}
+						
+					}
+					
+					if(p_Profile_a->slowdown)
+					{
+						Sollwert_RPM_b = p_Profile_a->speed_slow;
+						running_b = p_Profile_a->time_fast_init;
+						uint32_t time_b_remaining = p_Profile_a->total_time - running_b;
+						if(time_b_remaining > (p_Profile_a->speed_time+p_Profile_a->time_slow))
+						{
+							cli();
+							next_change_b = Unixtimestamp + p_Profile_a->time_slow;
+							sei();
+							p_Profile_a->speedup = true;
+							p_Profile_a->slowdown = false;
+							p_Profile_a->switchoff = false;
+							
+						}
+						else
+						{
+							next_change_b = Unixtimestamp + time_b_remaining;
+							p_Profile_a->slowdown = false;
+							p_Profile_a->switchoff = true;
+							p_Profile_a->speedup = false;
+						}
+						
+						
+						
+					}
+					
+				}
 				
 			}
 		}
 		else
 		{
 			PORTA.OUTCLR = PIN6_bm;
+			if(running_a)
+			{
+				PORTA.OUTSET = PIN5_bm;
+			}
+			else
+			{
+				PORTA.OUTCLR = PIN5_bm;
+			}
+			
 		}
 		
 		//automode changes of side b
@@ -1208,12 +1889,21 @@ int main(void)
 				
 			if(Unixtimestamp >= next_change_b)
 			{
-				if(p_Profile_b->type == type_normal)
+				if(p_Profile_b->type == type_normal || p_Profile_b->type == type_stop)
 				{
 					if(p_Profile_b->switchoff)
 					{
 						end_b = true;
-						next_change_b = Unixtimestamp + p_Profile_b->speed_slow;
+						if(p_Profile_b->type == type_stop)
+						{
+							running_b = false;
+						}
+						else
+						{
+							next_change_b = Unixtimestamp + p_Profile_b->speed_slow;
+						}
+						
+						
 						
 					}
 					if(p_Profile_b->slowdown)
@@ -1227,12 +1917,105 @@ int main(void)
 					
 					
 				}
+				if(p_Profile_b->type == type_switch)
+				{
+					if(p_Profile_b->switchoff)
+					{
+						end_b = true;
+						if(p_Profile_b->type == type_stop)
+						{
+							running_b = false;
+						}
+						else
+						{
+							next_change_b = Unixtimestamp + p_Profile_b->speed_slow;
+						}
+						
+						
+						
+					}
+					if(p_Profile_b->speedup)
+					{
+						Sollwert_RPM_b = p_Profile_b->speed_fast;
+						p_Profile_b->speedup = false;
+						p_Profile_b->slowdown_switch = true;
+						p_Profile_b->slowdown = false;
+						p_Profile_b->switchoff = false;
+						cli();
+						next_change_b = Unixtimestamp + p_Profile_b->speed_time;
+						sei();
+						
+						
+						
+					}
+					if(p_Profile_b->slowdown_switch)
+					{
+						Sollwert_RPM_b = p_Profile_b->speed_slow;
+						running_b = p_Profile_b->time_fast_init;
+						uint32_t time_b_remaining = p_Profile_b->total_time - running_b;
+						if(time_b_remaining > (p_Profile_b->speed_time+p_Profile_b->time_slow))
+						{
+							cli();
+							next_change_b = Unixtimestamp + p_Profile_b->time_slow;
+							sei();
+							p_Profile_b->speedup = true;
+							p_Profile_b->slowdown = false;
+							p_Profile_b->switchoff = false;
+							
+						}
+						else
+						{
+							next_change_b = Unixtimestamp + time_b_remaining;
+							p_Profile_b->slowdown = false;
+							p_Profile_b->switchoff = true;
+							p_Profile_b->speedup = false;
+						}
+						
+					}
+					
+					if(p_Profile_b->slowdown)
+					{
+						Sollwert_RPM_b = p_Profile_b->speed_slow;
+						running_b = p_Profile_b->time_fast_init;
+						uint32_t time_b_remaining = p_Profile_b->total_time - running_b;
+						if(time_b_remaining > (p_Profile_b->speed_time+p_Profile_b->time_slow))
+						{
+							cli();
+							next_change_b = Unixtimestamp + p_Profile_b->time_slow;
+							sei();
+							p_Profile_b->speedup = true;
+							p_Profile_b->slowdown = false;
+							p_Profile_b->switchoff = false;
+							
+						}
+						else
+						{
+							next_change_b = Unixtimestamp + time_b_remaining;
+							p_Profile_b->slowdown = false;
+							p_Profile_b->switchoff = true;
+							p_Profile_b->speedup = false;
+						}
+						
+						
+						
+					}
+					
+				}
 				
 			}
 		}
 		else
 		{
 			PORTB.OUTCLR = PIN0_bm;
+			if(running_b)
+			{
+				PORTA.OUTSET = PIN7_bm;
+			}
+			else
+			{
+				PORTA.OUTCLR = PIN7_bm;
+			}
+			
 		}
 		
 		//Show display values
@@ -1679,281 +2462,7 @@ int main(void)
 					break;
 					case 0x10:
 					{
-						static bool change = false;
-						if(screen_clear)
-						{
-							screen_clear = false;
-							lcd_clrscr();
-							lcd_gotoxy(1,0);
-							lcd_puts("Profil links ");
-							lcd_gotoxy(1,1);
-							lcd_puts("ID :");
-							utoa(p_Profile_a->ID,int_buffer,10);
-							lcd_puts(int_buffer);
-							lcd_gotoxy(1,2);
-							lcd_puts("Typ: ");
-							if(p_Profile_a->type == type_normal)
-							lcd_puts("normal");
-							if(p_Profile_a->type == type_switch)
-							lcd_puts("wechselnd");
-							if(p_Profile_a->type == type_switch)
-							lcd_puts("sedimentieren");
-							lcd_gotoxy(1,3);
-							lcd_puts("Langsam: ");
-							utoa(p_Profile_a->speed_slow,int_buffer,10);
-							lcd_puts(int_buffer);
-							lcd_puts(" UpM");
-							lcd_gotoxy(1,4);
-							lcd_puts("Schnell: ");
-							utoa(p_Profile_a->speed_fast,int_buffer,10);
-							lcd_puts(int_buffer);
-							lcd_puts(" UpM");
-							lcd_gotoxy(1,5);
-							lcd_puts("t schnell ");
-							display_time_menu(&p_Profile_a->time_fast_init,false,0,0);
-							lcd_gotoxy(1,6);
-							lcd_puts("t Gesamt  ");
-							display_time_menu(&p_Profile_a->total_time,false,0,0);
-							lcd_gotoxy(1,7);
-							lcd_puts("t langsam ");
-							display_time_menu(&p_Profile_a->time_slow,false,0,0);
-						}
-						if(menu.sub_menu >0)
-						{
-							switch(menu.sub_menu)
-							{
-								case 0x30:
-								{
-									p_Profile_a->speed_slow += encode_read2() * 10;
-									lcd_gotoxy(10,3);
-									if(p_Profile_a->speed_slow <10)
-									lcd_puts(" ");
-									if(p_Profile_a->speed_slow <100)
-									lcd_puts(" ");
-									if(p_Profile_a->speed_slow <1000)
-									lcd_puts(" ");
-									utoa(p_Profile_a->speed_slow,int_buffer,10);
-									lcd_puts_invert(int_buffer);
-									lcd_puts(" UpM");
-									if( get_key_short( 1<<KEY0 ))
-									{
-										lcd_gotoxy(10,3);
-										if(p_Profile_a->speed_slow <10)
-										lcd_puts(" ");
-										if(p_Profile_a->speed_slow <100)
-										lcd_puts(" ");
-										if(p_Profile_a->speed_slow <1000)
-										lcd_puts(" ");
-										utoa(p_Profile_a->speed_slow,int_buffer,10);
-										lcd_puts(int_buffer);
-										lcd_puts(" UpM");
-										position = 3;
-										old_position = 2;
-										menu.sub_menu = 0;	
-									}
-									
-									
-								}
-								break;
-								case 0x40:
-								{
-									p_Profile_a->speed_fast += encode_read2() * 10;
-									lcd_gotoxy(10,4);
-									if(p_Profile_a->speed_fast <10)
-									lcd_puts(" ");
-									if(p_Profile_a->speed_fast <100)
-									lcd_puts(" ");
-									if(p_Profile_a->speed_fast <1000)
-									lcd_puts(" ");
-									utoa(p_Profile_a->speed_fast,int_buffer,10);
-									lcd_puts_invert(int_buffer);
-									lcd_puts(" UpM");
-									if( get_key_short( 1<<KEY0 ))
-									{
-										lcd_gotoxy(10,4);
-										if(p_Profile_a->speed_fast <10)
-										lcd_puts(" ");
-										if(p_Profile_a->speed_fast <100)
-										lcd_puts(" ");
-										if(p_Profile_a->speed_fast <1000)
-										lcd_puts(" ");
-										utoa(p_Profile_a->speed_fast,int_buffer,10);
-										lcd_puts(int_buffer);
-										lcd_puts(" UpM");
-										position = 4;
-										old_position = 2;
-										menu.sub_menu = 0;
-									}
-									
-									
-								}
-								break;
-								case 0x50:
-								{
-									
-									update_proile_time(&p_Profile_a->time_fast_init,encode_read2() * 3600,max_profile_time);
-									//p_Profile_a->time_fast_init += encode_read2() * 3600;
-									lcd_gotoxy(11,5);
-									display_time_menu(&p_Profile_a->time_fast_init,true,0,1);
-									if( get_key_short( 1<<KEY0 ))
-									{
-										lcd_gotoxy(11,5);
-										display_time_menu(&p_Profile_a->time_fast_init,false,0,0);
-										
-										menu.sub_menu = 0x51;
-									}
-									
-									
-								}
-								break;
-								case 0x51:
-								{
-									update_proile_time(&p_Profile_a->time_fast_init,encode_read2() * 60,max_profile_time);
-									//p_Profile_a->time_fast_init += encode_read2() * 60;
-									lcd_gotoxy(11,5);
-									display_time_menu(&p_Profile_a->time_fast_init,true,3,4);
-									if( get_key_short( 1<<KEY0 ))
-									{
-										lcd_gotoxy(11,5);
-										display_time_menu(&p_Profile_a->time_fast_init,false,0,0);
-										
-										menu.sub_menu = 0x52;
-									}
-									
-									
-								}
-								break;
-								case 0x52:
-								{
-									update_proile_time(&p_Profile_a->time_fast_init,encode_read2(),max_profile_time);
-									//p_Profile_a->time_fast_init += encode_read2() ;
-									lcd_gotoxy(11,5);
-									display_time_menu(&p_Profile_a->time_fast_init,true,6,7);
-									if( get_key_short( 1<<KEY0 ))
-									{
-										lcd_gotoxy(11,5);
-										display_time_menu(&p_Profile_a->time_fast_init,false,0,0);
-										position = 5;
-										old_position = 2;
-										menu.sub_menu = 0x00;
-									}
-									
-									
-								}
-								break;
-								case 0x60:
-								{
-									update_proile_time(&p_Profile_a->total_time,encode_read2() * 3600,max_profile_time);
-									//p_Profile_a->total_time += encode_read2() * 3600;
-									lcd_gotoxy(11,6);
-									display_time_menu(&p_Profile_a->total_time,true,0,1);
-									if( get_key_short( 1<<KEY0 ))
-									{
-										lcd_gotoxy(11,6);
-										display_time_menu(&p_Profile_a->total_time,false,0,0);
-										
-										menu.sub_menu = 0x61;
-									}
-									
-									
-								}
-								break;
-								case 0x61:
-								{
-									
-									update_proile_time(&p_Profile_a->total_time,encode_read2() * 60,max_profile_time);
-									//p_Profile_a->total_time += encode_read2() * 3600;
-									lcd_gotoxy(11,6);
-									display_time_menu(&p_Profile_a->total_time,true,3,4);
-									if( get_key_short( 1<<KEY0 ))
-									{
-										lcd_gotoxy(11,6);
-										display_time_menu(&p_Profile_a->total_time,false,0,0);
-										
-										menu.sub_menu = 0x62;
-									}
-									
-									
-								}
-								break;
-								case 0x62:
-								{
-									
-									update_proile_time(&p_Profile_a->total_time,encode_read2(),max_profile_time);
-									//p_Profile_a->total_time += encode_read2() * 3600;
-									lcd_gotoxy(11,6);
-									display_time_menu(&p_Profile_a->total_time,true,6,7);
-									if( get_key_short( 1<<KEY0 ))
-									{
-										lcd_gotoxy(11,6);
-										display_time_menu(&p_Profile_a->total_time,false,0,0);
-										position = 6;
-										old_position = 2;
-										menu.sub_menu = 0x00;
-									}
-									
-									
-								}
-								break;
-								case 0x70:
-								{
-									
-									update_proile_time(&p_Profile_a->time_slow,encode_read2() * 3600,max_profile_time);
-									//p_Profile_a->total_time += encode_read2() * 3600;p_Profile_a->time_slow += encode_read2() * 3600;
-									lcd_gotoxy(11,7);
-									display_time_menu(&p_Profile_a->time_slow,true,0,1);
-									if( get_key_short( 1<<KEY0 ))
-									{
-										lcd_gotoxy(11,7);
-										display_time_menu(&p_Profile_a->time_slow,false,0,0);
-										
-										menu.sub_menu = 0x71;
-									}
-									
-									
-								}
-								break;
-								case 0x71:
-								{
-									
-									update_proile_time(&p_Profile_a->time_slow,encode_read2() * 60,max_profile_time);
-									//p_Profile_a->total_time += encode_read2() * 3600;p_Profile_a->time_slow += encode_read2() * 3600;
-									lcd_gotoxy(11,7);
-									display_time_menu(&p_Profile_a->time_slow,true,3,4);
-									if( get_key_short( 1<<KEY0 ))
-									{
-										lcd_gotoxy(11,7);
-										display_time_menu(&p_Profile_a->time_slow,false,0,0);
-										
-										menu.sub_menu = 0x72;
-									}
-									
-									
-								}
-								break;
-								case 0x72:
-								{
-									
-									update_proile_time(&p_Profile_a->time_slow,encode_read2(),max_profile_time);
-									//p_Profile_a->total_time += encode_read2() * 3600;p_Profile_a->time_slow += encode_read2() * 3600;
-									lcd_gotoxy(11,7);
-									display_time_menu(&p_Profile_a->time_slow,true,6,7);
-									if( get_key_short( 1<<KEY0 ))
-									{
-										lcd_gotoxy(11,7);
-										display_time_menu(&p_Profile_a->time_slow,false,0,0);
-										position = 7;
-										old_position = 2;
-										menu.sub_menu = 0x00;
-									}
-									
-									
-								}
-								break;
-								default:
-								break;
-							}
-						}
+						display_menu(&position,int_buffer,p_Profile_a,&old_position,true,&screen_clear);
 						if(position != old_position)
 						{
 							if(position == 255)
@@ -1980,6 +2489,8 @@ int main(void)
 							{
 								menu.menu_point = 0;
 								screen_clear = true;
+								p_Profile_a->CRC_value = calculate_crc32_checksum((unsigned char *)p_Profile_a,sizeof(Speed_profile_t)-4);
+								write_profile(p_Profile_a,1);
 							}
 							else
 							{
@@ -2017,8 +2528,51 @@ int main(void)
 						{
 							if(position == 0)
 							{
+								p_Profile_b->CRC_value = calculate_crc32_checksum((unsigned char *)p_Profile_b,sizeof(Speed_profile_t)-4);
+								write_profile(p_Profile_b,2);
 								menu.menu_point = 0;
 								screen_clear = true;
+							}
+							else
+							{
+								menu.sub_menu = position <<4;
+							}
+						}
+						
+						
+					}
+					break;
+					case 0x12:
+					{
+						change_profile_menu(&position,p_profile_mod,int_buffer,&old_position,&ID_mod,&screen_clear);
+						if(position != old_position)
+						{
+							if(position == 255)
+							position = 8;
+							position = position%8;
+							old_position = position;
+							for(uint8_t i= 0;i<8;i++)
+							{
+								lcd_gotoxy(0,i);
+								if(i == position)
+								{
+									lcd_puts(">");
+								}
+								else
+								{
+									lcd_puts(" ");
+								}
+							}
+						}
+						
+						if(get_key_short( 1<<KEY0 ))
+						{
+							if(position == 0)
+							{
+								menu.menu_point = 0;
+								screen_clear = true;
+								p_profile_mod->CRC_value = calculate_crc32_checksum((unsigned char *)p_profile_mod,sizeof(Speed_profile_t)-4);
+								write_profile(p_profile_mod,ID_mod+4);
 							}
 							else
 							{

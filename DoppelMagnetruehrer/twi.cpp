@@ -10,7 +10,7 @@
 #include <util/delay.h>
 
 
-void twi_write(TWI_t *twiname, uint8_t *writeData,uint8_t page_adress,uint8_t Adress, uint8_t bytes,bool fixed,bool skip_address){
+void twi_write(TWI_t *twiname, uint8_t *writeData,uint8_t page_adress,uint16_t Adress, uint8_t bytes,bool fixed,bool skip_address,bool skip_high_address){
 
 	uint16_t i;
 	TWIE_MASTER_CTRLC &= ~((1<<TWI_MASTER_ACKACT_bp));
@@ -37,8 +37,16 @@ void twi_write(TWI_t *twiname, uint8_t *writeData,uint8_t page_adress,uint8_t Ad
 		
 	}
 	if(!skip_address)
-		twiname->MASTER.DATA = Adress;       // write word addr
-	while(!(twiname->MASTER.STATUS&TWI_MASTER_WIF_bm));
+	{
+		if(!skip_high_address)
+		{
+			twiname->MASTER.DATA = Adress>>8;
+			while (!(twiname->MASTER.STATUS & TWI_MASTER_WIF_bm));
+		}
+		
+		twiname->MASTER.DATA = Adress;
+		while (!(twiname->MASTER.STATUS & TWI_MASTER_WIF_bm));
+	}
 	for(i=0;i<bytes;i++){
 		if(!fixed)             // write data 
 		twiname->MASTER.DATA =writeData[i];
@@ -49,7 +57,7 @@ void twi_write(TWI_t *twiname, uint8_t *writeData,uint8_t page_adress,uint8_t Ad
 	TWIE.MASTER.CTRLC = TWI_MASTER_CMD_STOP_gc;
 }
 
-void twi_read(TWI_t *twiname, uint8_t *readData,uint8_t page_adress, uint8_t Adress, uint8_t bytes)
+void twi_read(TWI_t *twiname, uint8_t *readData,uint8_t page_adress, uint16_t Adress, uint8_t bytes,bool skip_address)
 {
 	twiname->MASTER.CTRLC &= ~((1<<TWI_MASTER_ACKACT_bp));
 	twiname->MASTER.ADDR = page_adress;
@@ -73,8 +81,13 @@ void twi_read(TWI_t *twiname, uint8_t *readData,uint8_t page_adress, uint8_t Adr
 		twiname->MASTER.ADDR = page_adress;
 		while (!(twiname->MASTER.STATUS & TWI_MASTER_WIF_bm));
 	}
-	twiname->MASTER.DATA = Adress;
-	while (!(twiname->MASTER.STATUS & TWI_MASTER_WIF_bm));
+	if(!skip_address)
+	{
+		twiname->MASTER.DATA = Adress >> 8;
+		while (!(twiname->MASTER.STATUS & TWI_MASTER_WIF_bm));
+		twiname->MASTER.DATA = Adress ;
+		while (!(twiname->MASTER.STATUS & TWI_MASTER_WIF_bm));
+	}
 	page_adress |= 0x01;
 	twiname->MASTER.ADDR = page_adress;
 	for(volatile uint8_t j=0 ;j<bytes ;j++){
