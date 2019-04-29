@@ -184,6 +184,9 @@
     <Compile Include="Descriptors.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="FM25CL64B.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="FRAM.cpp">
       <SubType>compile</SubType>
     </Compile>
@@ -209,6 +212,15 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="SD1306.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="SH1106.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="SPI.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="SPI.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="twi.cpp">

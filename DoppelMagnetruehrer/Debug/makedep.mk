@@ -14,6 +14,8 @@ main.cpp
 
 menu.cpp
 
+SPI.cpp
+
 twi.cpp
 
 usb_cdc.c

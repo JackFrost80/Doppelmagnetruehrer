@@ -25,6 +25,23 @@
 #define auto_aus	0
 #define auto_an		1
 #define manuel		3
+
+#define offset_settings_regulator 0x00
+#define offset_profile_a sizeof(regulator_parameters_t)*2 + offset_settings_regulator
+#define offset_profile_b sizeof(Speed_profile_t) + offset_profile_a
+#define offset_profiles sizeof(Speed_profile_t) + offset_profile_b
+
+
+typedef struct regulator_parameters {
+	
+	uint32_t I_speed_0;
+	uint32_t I_voltage_0;
+	uint32_t I_speed_1;
+	uint32_t I_voltage_1;
+	uint32_t CRC_value;
+
+} regulator_parameters_t,*p_regulator_parameters_t;
+
 typedef struct Speed_profile {
 	
 	uint8_t ID;
@@ -53,5 +70,7 @@ int8_t encode_read2( void );
 void display_time_menu(volatile uint32_t *timestamp,bool invert,uint8_t start, uint8_t ende);
 void update_proile_time(uint32_t *timevalue, int16_t change,uint32_t max_value);
 void init_profile_mod();
+void change_parameter_settings(p_regulator_parameters_t paramters_,bool seite, uint8_t *position_,char *int_buffer,bool *screen_clear_,uint8_t *old_position_);
+void init_profile_(p_Speed_profile_t p_profile_);
 
 #endif /* MAIN_H_ */

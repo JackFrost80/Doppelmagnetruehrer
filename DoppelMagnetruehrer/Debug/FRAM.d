@@ -23,7 +23,7 @@ FRAM.d FRAM.o: .././FRAM.cpp .././FRAM.h \
  c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\lib\gcc\avr\5.4.0\include\stdarg.h \
  .././lcd.h \
  c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\avr\pgmspace.h \
- .././twi.h .././SD1306.h
+ .././twi.h .././SD1306.h .././SPI.h .././FM25CL64B.h
 
 .././FRAM.h:
 
@@ -78,3 +78,7 @@ c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\
 .././twi.h:
 
 .././SD1306.h:
+
+.././SPI.h:
+
+.././FM25CL64B.h:

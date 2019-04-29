@@ -17,6 +17,7 @@
 #include "main.h"
 #include "FRAM.h"
 #include "CRC.h"
+#include "SPI.h"
 
 extern "C"
 {
@@ -64,8 +65,10 @@ volatile uint16_t Sollwert_RPM_a = 600;
 volatile uint16_t Sollwert_RPM_b = 600;
 volatile uint32_t Unixtimestamp = 0;
 volatile uint8_t Blink = 0;
-uint32_t I_Anteil = 100000;
-uint32_t I_Anteil_speed = 100000;
+uint32_t I_Anteil_a = 100000;
+uint32_t I_Anteil_speed_a = 100000;
+uint32_t I_Anteil_b = 100000;
+uint32_t I_Anteil_speed_b = 100000;
 volatile uint32_t RPM_a = 0; 
 volatile uint32_t RPM_b = 0; 
 volatile bool calc_regulator = false;
@@ -86,9 +89,15 @@ Speed_profile_t Profile_a;
 p_Speed_profile_t  p_Profile_a = &Profile_a;
 Speed_profile_t Profile_b;
 p_Speed_profile_t  p_Profile_b = &Profile_b;
+regulator_parameters_t parameter_a;
+p_regulator_parameters_t p_parameter_a = &parameter_a;;
+regulator_parameters_t parameter_b;
+p_regulator_parameters_t p_parameter_b = &parameter_b;;
 Speed_profile_t EEPROM_profile[12] EEMEM;
 uint8_t profile_ID_a EEMEM = 0;
 uint8_t profile_ID_b EEMEM = 0;
+uint8_t type_of_encoder_EE EEMEM =  4;
+uint8_t type_of_encoder = 4;
 bool show_menu = false;
 bool screen_clear = false;
 Menu_t menu = {0,0};
@@ -111,6 +120,9 @@ uint8_t Dauerantwort=0;
 Speed_profile_t profile_mod;
 p_Speed_profile_t p_profile_mod = &profile_mod;
 uint8_t ID_mod = 0;
+
+bool port_expander_present = false;
+bool TWI_FRAM_present = false;
 
 
 ISR(RTC_OVF_vect)
@@ -298,7 +310,7 @@ void regulator()
 		//Speed controller a
 		RPM_a = GetOutputValue(RPM_a_raw);
 		volatile int32_t error = (int32_t)Sollwert_RPM_a - (int32_t)RPM_a;
-		volatile int32_t temp_PWM = (error<<5) / (int32_t)(I_Anteil_speed / 125);
+		volatile int32_t temp_PWM = (error<<5) / (int32_t)(I_Anteil_speed_a / 125);
 		volatile int32_t Stellgrad = (int32_t)TCD0.CCA - temp_PWM;
 		if(Stellgrad < 0)
 		Stellgrad = 0;
@@ -319,7 +331,7 @@ void regulator()
 		Sollwert_a = 0x5A5;
 		
 		error = (int32_t)Sollwert_a - (int32_t)ADC_Value_a;
-		volatile int32_t temp = (error<<5) / (int32_t)(I_Anteil / 125);
+		volatile int32_t temp = (error<<5) / (int32_t)(I_Anteil_a / 125);
 		Stellgrad = (int32_t)TCC0.CCB + temp;
 		if((Stellgrad <= 0x1FF) && (Stellgrad > 0x0))
 		TCC0.CCB =  Stellgrad;
@@ -342,7 +354,7 @@ void regulator()
 		RPM_b = GetOutputValue(RPM_b_raw);
 		//Speed controller b
 		volatile int32_t error = (int32_t)Sollwert_RPM_b - (int32_t)RPM_b;
-		volatile int32_t temp_PWM = (error<<5) / (int32_t)(I_Anteil_speed / 125);
+		volatile int32_t temp_PWM = (error<<5) / (int32_t)(I_Anteil_speed_b / 125);
 		volatile int32_t Stellgrad = (int32_t)TCD0.CCB - temp_PWM;
 		if(Stellgrad < 0)
 		Stellgrad = 0;
@@ -363,7 +375,7 @@ void regulator()
 		Sollwert_b = 0x5A5;
 		// Voltage controller b
 		volatile int32_t error_b = (int32_t)Sollwert_b - (int32_t)ADC_Value_b;
-		volatile int32_t temp_b = (error_b<<5) / (int32_t)(I_Anteil / 125);
+		volatile int32_t temp_b = (error_b<<5) / (int32_t)(I_Anteil_b / 125);
 		volatile int32_t Stellgrad_b = (int32_t)TCC0.CCA + temp_b;
 		if((Stellgrad_b <= 0x1FF) && (Stellgrad_b > 0x0))
 		TCC0.CCA =  Stellgrad_b;
@@ -396,6 +408,157 @@ void Blink_LED(PORT_t* port,uint8_t Pin_blink ,uint8_t Takt, uint8_t Frequenz)
 	port->OUTTGL = 1<<Pin_blink;
 }
 
+void change_parameter_settings(p_regulator_parameters_t paramters_,bool seite, uint8_t *position_,char *int_buffer,bool *screen_clear_,uint8_t *old_position_)
+{
+	if(*screen_clear_)
+	{
+		*screen_clear_ = false;
+		lcd_clrscr(port_expander_present);
+		lcd_gotoxy(1,0,port_expander_present);
+		if(seite)
+			lcd_puts("Regelparamter links");
+		else
+			lcd_puts("Regelparamter rechts");
+		lcd_gotoxy(1,1,port_expander_present);
+		lcd_puts(" I Vcc 120 mm:");
+		if(paramters_->I_voltage_0/100 <100)
+		lcd_puts(" ");
+		if(paramters_->I_voltage_0/100 <10)
+		lcd_puts(" ");
+		utoa(paramters_->I_voltage_0/100,int_buffer,10);
+		lcd_puts(int_buffer);
+		lcd_gotoxy(1,2,port_expander_present);
+		lcd_puts("I Speed 120 mm:");
+		if(paramters_->I_speed_0/1000 <100)
+		lcd_puts(" ");
+		if(paramters_->I_speed_0/1000 <10)
+		lcd_puts(" ");
+		utoa(paramters_->I_speed_0/1000,int_buffer,10);
+		lcd_puts(int_buffer);
+		
+		lcd_gotoxy(1,3,port_expander_present);
+		lcd_puts(" I Vcc 140 mm:");
+		if(paramters_->I_voltage_0/100 <100)
+		lcd_puts(" ");
+		if(paramters_->I_voltage_0/100 <10)
+		lcd_puts(" ");
+		utoa(paramters_->I_voltage_0/100,int_buffer,10);
+		lcd_puts(int_buffer);
+		lcd_gotoxy(1,4,port_expander_present);
+		lcd_puts("I Speed 140 mm:");
+		if(paramters_->I_speed_0/1000 <100)
+		lcd_puts(" ");
+		if(paramters_->I_speed_0/1000 <10)
+		lcd_puts(" ");
+		utoa(paramters_->I_speed_0/1000,int_buffer,10);
+		lcd_puts(int_buffer);
+				
+		if(menu.sub_menu >0)
+		{
+			switch(menu.sub_menu)
+			{
+				case 0x10:
+				{
+					paramters_->I_voltage_0 += encode_read2()*100;
+					lcd_gotoxy(12,1,port_expander_present);
+					if(paramters_->I_voltage_0/100 <100)
+					lcd_puts(" ");
+					if(paramters_->I_voltage_0/100 <10)
+					lcd_puts(" ");
+					utoa(paramters_->I_voltage_0/100,int_buffer,10);
+					lcd_puts_invert(int_buffer);
+					if( get_key_short( 1<<KEY0 ))
+					{
+						
+						*screen_clear_ = true;
+						*position_ = 1;
+						*old_position_ = 2;
+						menu.sub_menu = 0;
+					}
+					
+				}
+				break;
+				case 0x20:
+				{
+					paramters_->I_speed_0 += encode_read2()*100;
+					lcd_gotoxy(12,1,port_expander_present);
+					if(paramters_->I_speed_0/100 <100)
+					lcd_puts(" ");
+					if(paramters_->I_speed_0/100 <10)
+					lcd_puts(" ");
+					utoa(paramters_->I_speed_0/100,int_buffer,10);
+					lcd_puts_invert(int_buffer);
+					if( get_key_short( 1<<KEY0 ))
+					{
+						
+						*screen_clear_ = true;
+						*position_ = 1;
+						*old_position_ = 2;
+						menu.sub_menu = 0;
+					}
+					
+				}
+				break;
+				case 0x30:
+				{
+					paramters_->I_voltage_1 += encode_read2()*100;
+					lcd_gotoxy(12,1,port_expander_present);
+					if(paramters_->I_voltage_1/100 <100)
+					lcd_puts(" ");
+					if(paramters_->I_voltage_1/100 <10)
+					lcd_puts(" ");
+					utoa(paramters_->I_voltage_1/100,int_buffer,10);
+					lcd_puts_invert(int_buffer);
+					if( get_key_short( 1<<KEY0 ))
+					{
+						
+						*screen_clear_ = true;
+						*position_ = 1;
+						*old_position_ = 2;
+						menu.sub_menu = 0;
+					}
+					
+				}
+				break;
+				case 0x40:
+				{
+					paramters_->I_speed_1 += encode_read2()*100;
+					lcd_gotoxy(12,1,port_expander_present);
+					if(paramters_->I_speed_1/100 <100)
+					lcd_puts(" ");
+					if(paramters_->I_speed_1/100 <10)
+					lcd_puts(" ");
+					utoa(paramters_->I_speed_1/100,int_buffer,10);
+					lcd_puts_invert(int_buffer);
+					if( get_key_short( 1<<KEY0 ))
+					{
+						
+						*screen_clear_ = true;
+						*position_ = 1;
+						*old_position_ = 2;
+						menu.sub_menu = 0;
+					}
+					
+				}
+				break;
+				default:
+				{
+					if( get_key_short( 1<<KEY0 ))
+					{
+						
+						*screen_clear_ = true;
+						*position_ = 1;
+						*old_position_ = 2;
+						menu.sub_menu = 0;
+					}
+				}
+				break;
+			}
+		}
+		
+	}
+}
+
 void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *int_buffer,uint8_t *old_position_,uint8_t *ID_,bool *screen_clear_)
 {
 	
@@ -403,19 +566,19 @@ void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *i
 	if(reload)
 	{
 		reload = false;
-		read_profile(p_profile_,*ID_+4);
+		read_profile(p_profile_,*ID_,TWI_FRAM_present,offset_profiles);
 		
 		if(p_profile_->CRC_value != calculate_crc32_checksum((unsigned char *)p_profile_,sizeof(Speed_profile_t)-4))
-			init_profile_mod();
+			init_profile_(p_profile_);
 	}
 	static bool change = false;
 	if(*screen_clear_)
 	{
 		*screen_clear_ = false;
-		lcd_clrscr();
-		lcd_gotoxy(1,0);
+		lcd_clrscr(port_expander_present);
+		lcd_gotoxy(1,0,port_expander_present);
 		lcd_puts("Profil bearbeiten");
-		lcd_gotoxy(1,1);
+		lcd_gotoxy(1,1,port_expander_present);
 		lcd_puts("ID :");
 		if(*ID_ <100)
 			lcd_puts(" ");
@@ -423,7 +586,7 @@ void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *i
 			lcd_puts(" ");
 		utoa(*ID_,int_buffer,10);
 		lcd_puts(int_buffer);
-		lcd_gotoxy(1,2);
+		lcd_gotoxy(1,2,port_expander_present);
 		lcd_puts("Typ: ");
 		if(p_profile_->type == type_normal)
 		lcd_puts("normal");
@@ -431,23 +594,23 @@ void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *i
 		lcd_puts("wechselnd");
 		if(p_profile_->type == type_stop)
 		lcd_puts("sedimentieren");
-		lcd_gotoxy(1,3);
+		lcd_gotoxy(1,3,port_expander_present);
 		lcd_puts("Langsam: ");
 		utoa(p_profile_->speed_slow,int_buffer,10);
 		lcd_puts(int_buffer);
 		lcd_puts(" UpM");
-		lcd_gotoxy(1,4);
+		lcd_gotoxy(1,4,port_expander_present);
 		lcd_puts("Schnell: ");
 		utoa(p_profile_->speed_fast,int_buffer,10);
 		lcd_puts(int_buffer);
 		lcd_puts(" UpM");
-		lcd_gotoxy(1,5);
+		lcd_gotoxy(1,5,port_expander_present);
 		lcd_puts("t schnell ");
 		display_time_menu(&p_profile_->time_fast_init,false,0,0);
-		lcd_gotoxy(1,6);
+		lcd_gotoxy(1,6,port_expander_present);
 		lcd_puts("t Gesamt  ");
 		display_time_menu(&p_profile_->total_time,false,0,0);
-		lcd_gotoxy(1,7);
+		lcd_gotoxy(1,7,port_expander_present);
 		lcd_puts("t langsam ");
 		display_time_menu(&p_profile_->time_slow,false,0,0);
 	}
@@ -458,7 +621,7 @@ void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *i
 			case 0x10:
 			{
 				*ID_ += encode_read2();
-				lcd_gotoxy(1,1);
+				lcd_gotoxy(1,1,port_expander_present);
 				lcd_puts("ID :");
 				if(*ID_ <100)
 					lcd_puts(" ");
@@ -483,7 +646,7 @@ void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *i
 				if(p_profile_->type==255)
 				p_profile_->type = 2;
 				p_profile_->type %=3;
-				lcd_gotoxy(1,2);
+				lcd_gotoxy(1,2,port_expander_present);
 				lcd_puts("Typ: ");
 				if(p_profile_->type == type_normal)
 				lcd_puts_invert("normal");
@@ -493,7 +656,7 @@ void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *i
 				lcd_puts_invert("sedimentieren");
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(1,2);
+					lcd_gotoxy(1,2,port_expander_present);
 					lcd_puts("Typ: ");
 					if(p_profile_->type == type_normal)
 					lcd_puts("normal");
@@ -512,7 +675,7 @@ void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *i
 			case 0x30:
 			{
 				p_profile_->speed_slow += encode_read2() * 10;
-				lcd_gotoxy(10,3);
+				lcd_gotoxy(10,3,port_expander_present);
 				if(p_Profile_a->speed_slow <10)
 				lcd_puts(" ");
 				if(p_profile_->speed_slow <100)
@@ -524,7 +687,7 @@ void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *i
 				lcd_puts(" UpM");
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(10,3);
+					lcd_gotoxy(10,3,port_expander_present);
 					if(p_profile_->speed_slow <10)
 					lcd_puts(" ");
 					if(p_profile_->speed_slow <100)
@@ -545,7 +708,7 @@ void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *i
 			case 0x40:
 			{
 				p_profile_->speed_fast += encode_read2() * 10;
-				lcd_gotoxy(10,4);
+				lcd_gotoxy(10,4,port_expander_present);
 				if(p_profile_->speed_fast <10)
 				lcd_puts(" ");
 				if(p_profile_->speed_fast <100)
@@ -557,7 +720,7 @@ void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *i
 				lcd_puts(" UpM");
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(10,4);
+					lcd_gotoxy(10,4,port_expander_present);
 					if(p_profile_->speed_fast <10)
 					lcd_puts(" ");
 					if(p_profile_->speed_fast <100)
@@ -580,11 +743,11 @@ void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *i
 				
 				update_proile_time(&p_profile_->time_fast_init,encode_read2() * 3600,max_profile_time);
 				//p_Profile_a->time_fast_init += encode_read2() * 3600;
-				lcd_gotoxy(11,5);
+				lcd_gotoxy(11,5,port_expander_present);
 				display_time_menu(&p_profile_->time_fast_init,true,0,1);
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(11,5);
+					lcd_gotoxy(11,5,port_expander_present);
 					display_time_menu(&p_profile_->time_fast_init,false,0,0);
 					
 					menu.sub_menu = 0x51;
@@ -597,11 +760,11 @@ void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *i
 			{
 				update_proile_time(&p_profile_->time_fast_init,encode_read2() * 60,max_profile_time);
 				//p_Profile_a->time_fast_init += encode_read2() * 60;
-				lcd_gotoxy(11,5);
+				lcd_gotoxy(11,5,port_expander_present);
 				display_time_menu(&p_profile_->time_fast_init,true,3,4);
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(11,5);
+					lcd_gotoxy(11,5,port_expander_present);
 					display_time_menu(&p_profile_->time_fast_init,false,0,0);
 					
 					menu.sub_menu = 0x52;
@@ -614,11 +777,11 @@ void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *i
 			{
 				update_proile_time(&p_profile_->time_fast_init,encode_read2(),max_profile_time);
 				//p_Profile_a->time_fast_init += encode_read2() ;
-				lcd_gotoxy(11,5);
+				lcd_gotoxy(11,5,port_expander_present);
 				display_time_menu(&p_profile_->time_fast_init,true,6,7);
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(11,5);
+					lcd_gotoxy(11,5,port_expander_present);
 					display_time_menu(&p_profile_->time_fast_init,false,0,0);
 					*position_ = 5;
 					*old_position_ = 2;
@@ -632,11 +795,11 @@ void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *i
 			{
 				update_proile_time(&p_profile_->total_time,encode_read2() * 3600,max_profile_time);
 				//p_Profile_a->total_time += encode_read2() * 3600;
-				lcd_gotoxy(11,6);
+				lcd_gotoxy(11,6,port_expander_present);
 				display_time_menu(&p_profile_->total_time,true,0,1);
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(11,6);
+					lcd_gotoxy(11,6,port_expander_present);
 					display_time_menu(&p_profile_->total_time,false,0,0);
 					
 					menu.sub_menu = 0x61;
@@ -650,11 +813,11 @@ void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *i
 				
 				update_proile_time(&p_profile_->total_time,encode_read2() * 60,max_profile_time);
 				//p_Profile_a->total_time += encode_read2() * 3600;
-				lcd_gotoxy(11,6);
+				lcd_gotoxy(11,6,port_expander_present);
 				display_time_menu(&p_profile_->total_time,true,3,4);
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(11,6);
+					lcd_gotoxy(11,6,port_expander_present);
 					display_time_menu(&p_profile_->total_time,false,0,0);
 					
 					menu.sub_menu = 0x62;
@@ -668,11 +831,11 @@ void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *i
 				
 				update_proile_time(&p_Profile_a->total_time,encode_read2(),max_profile_time);
 				//p_Profile_a->total_time += encode_read2() * 3600;
-				lcd_gotoxy(11,6);
+				lcd_gotoxy(11,6,port_expander_present);
 				display_time_menu(&p_profile_->total_time,true,6,7);
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(11,6);
+					lcd_gotoxy(11,6,port_expander_present);
 					display_time_menu(&p_profile_->total_time,false,0,0);
 					*position_ = 6;
 					*old_position_ = 2;
@@ -687,11 +850,11 @@ void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *i
 				
 				update_proile_time(&p_profile_->time_slow,encode_read2() * 3600,max_profile_time);
 				//p_Profile_a->total_time += encode_read2() * 3600;p_Profile_a->time_slow += encode_read2() * 3600;
-				lcd_gotoxy(11,7);
+				lcd_gotoxy(11,7,port_expander_present);
 				display_time_menu(&p_profile_->time_slow,true,0,1);
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(11,7);
+					lcd_gotoxy(11,7,port_expander_present);
 					display_time_menu(&p_profile_->time_slow,false,0,0);
 					
 					menu.sub_menu = 0x71;
@@ -705,11 +868,11 @@ void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *i
 				
 				update_proile_time(&p_Profile_a->time_slow,encode_read2() * 60,max_profile_time);
 				//p_Profile_a->total_time += encode_read2() * 3600;p_Profile_a->time_slow += encode_read2() * 3600;
-				lcd_gotoxy(11,7);
+				lcd_gotoxy(11,7,port_expander_present);
 				display_time_menu(&p_profile_->time_slow,true,3,4);
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(11,7);
+					lcd_gotoxy(11,7,port_expander_present);
 					display_time_menu(&p_profile_->time_slow,false,0,0);
 					
 					menu.sub_menu = 0x72;
@@ -723,11 +886,11 @@ void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *i
 				
 				update_proile_time(&p_profile_->time_slow,encode_read2(),max_profile_time);
 				//p_Profile_a->total_time += encode_read2() * 3600;p_Profile_a->time_slow += encode_read2() * 3600;
-				lcd_gotoxy(11,7);
+				lcd_gotoxy(11,7,port_expander_present);
 				display_time_menu(&p_profile_->time_slow,true,6,7);
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(11,7);
+					lcd_gotoxy(11,7,port_expander_present);
 					display_time_menu(&p_profile_->time_slow,false,0,0);
 					*position_ = 7;
 					*old_position_ = 2;
@@ -752,22 +915,22 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 	if(reload)
 	{
 		reload = false;
-		read_profile(p_profile_,ID_+4);
+		read_profile(p_profile_,ID_,TWI_FRAM_present,offset_profiles);
 		if(p_profile_->CRC_value != calculate_crc32_checksum((unsigned char *)p_profile_,sizeof(Speed_profile_t)-4))
-			init_profile_mod();
+			init_profile_(p_profile_);
 		
 	}
 	
 	if(*screen_clear_)
 	{
 		*screen_clear_ = false;
-		lcd_clrscr();
-		lcd_gotoxy(1,0);
+		lcd_clrscr(port_expander_present);
+		lcd_gotoxy(1,0,port_expander_present);
 		if(left_)
 			lcd_puts("Profil links ");
 		else
 			lcd_puts("Profil rechts");
-		lcd_gotoxy(1,1);
+		lcd_gotoxy(1,1,port_expander_present);
 		lcd_puts("ID :");
 		if(p_profile_->ID <100)
 			lcd_puts(" ");
@@ -775,7 +938,7 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 			lcd_puts(" ");
 		utoa(p_profile_->ID,int_buffer,10);
 		lcd_puts(int_buffer);
-		lcd_gotoxy(1,2);
+		lcd_gotoxy(1,2,port_expander_present);
 		lcd_puts("Typ: ");
 		if(p_profile_->type == type_normal)
 		lcd_puts("normal");
@@ -783,23 +946,23 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 		lcd_puts("wechselnd");
 		if(p_profile_->type == type_switch)
 		lcd_puts("sedimentieren");
-		lcd_gotoxy(1,3);
+		lcd_gotoxy(1,3,port_expander_present);
 		lcd_puts("Langsam: ");
 		utoa(p_profile_->speed_slow,int_buffer,10);
 		lcd_puts(int_buffer);
 		lcd_puts(" UpM");
-		lcd_gotoxy(1,4);
+		lcd_gotoxy(1,4,port_expander_present);
 		lcd_puts("Schnell: ");
 		utoa(p_profile_->speed_fast,int_buffer,10);
 		lcd_puts(int_buffer);
 		lcd_puts(" UpM");
-		lcd_gotoxy(1,5);
+		lcd_gotoxy(1,5,port_expander_present);
 		lcd_puts("t schnell ");
 		display_time_menu(&p_profile_->time_fast_init,false,0,0);
-		lcd_gotoxy(1,6);
+		lcd_gotoxy(1,6,port_expander_present);
 		lcd_puts("t Gesamt  ");
 		display_time_menu(&p_profile_->total_time,false,0,0);
-		lcd_gotoxy(1,7);
+		lcd_gotoxy(1,7,port_expander_present);
 		lcd_puts("t langsam ");
 		display_time_menu(&p_profile_->time_slow,false,0,0);
 	}
@@ -810,7 +973,7 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 			case 0x10:
 			{
 				ID_ += encode_read2();
-				lcd_gotoxy(1,1);
+				lcd_gotoxy(1,1,port_expander_present);
 				lcd_puts("ID :");
 				if(p_profile_->ID <100)
 					lcd_puts(" ");
@@ -835,7 +998,7 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 				if(p_profile_->type==255)
 					p_profile_->type = 2;
 				p_profile_->type %=3;
-				lcd_gotoxy(1,2);
+				lcd_gotoxy(1,2,port_expander_present);
 				lcd_puts("Typ: ");
 				if(p_profile_->type == type_normal)
 				lcd_puts_invert("normal");
@@ -845,7 +1008,7 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 				lcd_puts_invert("sedimentieren");
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(1,2);
+					lcd_gotoxy(1,2,port_expander_present);
 					lcd_puts("Typ: ");
 					if(p_profile_->type == type_normal)
 					lcd_puts("normal");
@@ -864,7 +1027,7 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 			case 0x30:
 			{
 				p_profile_->speed_slow += encode_read2() * 10;
-				lcd_gotoxy(10,3);
+				lcd_gotoxy(10,3,port_expander_present);
 				if(p_Profile_a->speed_slow <10)
 				lcd_puts(" ");
 				if(p_profile_->speed_slow <100)
@@ -876,7 +1039,7 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 				lcd_puts(" UpM");
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(10,3);
+					lcd_gotoxy(10,3,port_expander_present);
 					if(p_profile_->speed_slow <10)
 					lcd_puts(" ");
 					if(p_profile_->speed_slow <100)
@@ -897,7 +1060,7 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 			case 0x40:
 			{
 				p_profile_->speed_fast += encode_read2() * 10;
-				lcd_gotoxy(10,4);
+				lcd_gotoxy(10,4,port_expander_present);
 				if(p_profile_->speed_fast <10)
 				lcd_puts(" ");
 				if(p_profile_->speed_fast <100)
@@ -909,7 +1072,7 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 				lcd_puts(" UpM");
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(10,4);
+					lcd_gotoxy(10,4,port_expander_present);
 					if(p_profile_->speed_fast <10)
 					lcd_puts(" ");
 					if(p_profile_->speed_fast <100)
@@ -932,11 +1095,11 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 				
 				update_proile_time(&p_profile_->time_fast_init,encode_read2() * 3600,max_profile_time);
 				//p_Profile_a->time_fast_init += encode_read2() * 3600;
-				lcd_gotoxy(11,5);
+				lcd_gotoxy(11,5,port_expander_present);
 				display_time_menu(&p_profile_->time_fast_init,true,0,1);
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(11,5);
+					lcd_gotoxy(11,5,port_expander_present);
 					display_time_menu(&p_profile_->time_fast_init,false,0,0);
 					
 					menu.sub_menu = 0x51;
@@ -949,11 +1112,11 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 			{
 				update_proile_time(&p_profile_->time_fast_init,encode_read2() * 60,max_profile_time);
 				//p_Profile_a->time_fast_init += encode_read2() * 60;
-				lcd_gotoxy(11,5);
+				lcd_gotoxy(11,5,port_expander_present);
 				display_time_menu(&p_profile_->time_fast_init,true,3,4);
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(11,5);
+					lcd_gotoxy(11,5,port_expander_present);
 					display_time_menu(&p_profile_->time_fast_init,false,0,0);
 					
 					menu.sub_menu = 0x52;
@@ -966,11 +1129,11 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 			{
 				update_proile_time(&p_profile_->time_fast_init,encode_read2(),max_profile_time);
 				//p_Profile_a->time_fast_init += encode_read2() ;
-				lcd_gotoxy(11,5);
+				lcd_gotoxy(11,5,port_expander_present);
 				display_time_menu(&p_profile_->time_fast_init,true,6,7);
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(11,5);
+					lcd_gotoxy(11,5,port_expander_present);
 					display_time_menu(&p_profile_->time_fast_init,false,0,0);
 					*position_ = 5;
 					*old_position_ = 2;
@@ -984,11 +1147,11 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 			{
 				update_proile_time(&p_profile_->total_time,encode_read2() * 3600,max_profile_time);
 				//p_Profile_a->total_time += encode_read2() * 3600;
-				lcd_gotoxy(11,6);
+				lcd_gotoxy(11,6,port_expander_present);
 				display_time_menu(&p_profile_->total_time,true,0,1);
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(11,6);
+					lcd_gotoxy(11,6,port_expander_present);
 					display_time_menu(&p_profile_->total_time,false,0,0);
 					
 					menu.sub_menu = 0x61;
@@ -1002,11 +1165,11 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 				
 				update_proile_time(&p_profile_->total_time,encode_read2() * 60,max_profile_time);
 				//p_Profile_a->total_time += encode_read2() * 3600;
-				lcd_gotoxy(11,6);
+				lcd_gotoxy(11,6,port_expander_present);
 				display_time_menu(&p_profile_->total_time,true,3,4);
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(11,6);
+					lcd_gotoxy(11,6,port_expander_present);
 					display_time_menu(&p_profile_->total_time,false,0,0);
 					
 					menu.sub_menu = 0x62;
@@ -1020,11 +1183,11 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 				
 				update_proile_time(&p_Profile_a->total_time,encode_read2(),max_profile_time);
 				//p_Profile_a->total_time += encode_read2() * 3600;
-				lcd_gotoxy(11,6);
+				lcd_gotoxy(11,6,port_expander_present);
 				display_time_menu(&p_profile_->total_time,true,6,7);
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(11,6);
+					lcd_gotoxy(11,6,port_expander_present);
 					display_time_menu(&p_profile_->total_time,false,0,0);
 					*position_ = 6;
 					*old_position_ = 2;
@@ -1039,11 +1202,11 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 				
 				update_proile_time(&p_profile_->time_slow,encode_read2() * 3600,max_profile_time);
 				//p_Profile_a->total_time += encode_read2() * 3600;p_Profile_a->time_slow += encode_read2() * 3600;
-				lcd_gotoxy(11,7);
+				lcd_gotoxy(11,7,port_expander_present);
 				display_time_menu(&p_profile_->time_slow,true,0,1);
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(11,7);
+					lcd_gotoxy(11,7,port_expander_present);
 					display_time_menu(&p_profile_->time_slow,false,0,0);
 					
 					menu.sub_menu = 0x71;
@@ -1057,11 +1220,11 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 				
 				update_proile_time(&p_Profile_a->time_slow,encode_read2() * 60,max_profile_time);
 				//p_Profile_a->total_time += encode_read2() * 3600;p_Profile_a->time_slow += encode_read2() * 3600;
-				lcd_gotoxy(11,7);
+				lcd_gotoxy(11,7,port_expander_present);
 				display_time_menu(&p_profile_->time_slow,true,3,4);
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(11,7);
+					lcd_gotoxy(11,7,port_expander_present);
 					display_time_menu(&p_profile_->time_slow,false,0,0);
 					
 					menu.sub_menu = 0x72;
@@ -1075,11 +1238,11 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 				
 				update_proile_time(&p_profile_->time_slow,encode_read2(),max_profile_time);
 				//p_Profile_a->total_time += encode_read2() * 3600;p_Profile_a->time_slow += encode_read2() * 3600;
-				lcd_gotoxy(11,7);
+				lcd_gotoxy(11,7,port_expander_present);
 				display_time_menu(&p_profile_->time_slow,true,6,7);
 				if( get_key_short( 1<<KEY0 ))
 				{
-					lcd_gotoxy(11,7);
+					lcd_gotoxy(11,7,port_expander_present);
 					display_time_menu(&p_profile_->time_slow,false,0,0);
 					*position_ = 7;
 					*old_position_ = 2;
@@ -1254,13 +1417,57 @@ int8_t encode_read1( void )         // read single step encoders
 
 int8_t encode_read2( void )         // read two step encoders
 {
-	int8_t val;
+	switch(type_of_encoder)
+	{
+		case 1:
+		{
+			int8_t val;
 
-	cli();
-	val = enc_delta;
-	enc_delta = val & 1;
-	sei();
-	return val >> 1;
+			cli();
+			val = enc_delta;
+			enc_delta = 0;
+			sei();
+			return val;                   // counts since last call
+		}
+		break;
+		case 2:
+		{
+			int8_t val;
+			
+			cli();
+			val = enc_delta;
+			enc_delta = val & 1;
+			sei();
+			return val >> 1;
+		}
+		break;
+		case 4:
+		{
+			int8_t val;
+
+			cli();
+			val = enc_delta;
+			enc_delta = val & 3;
+			sei();
+			return val >> 2;
+		}
+		break;
+		default:
+		{
+			int8_t val;
+
+			cli();
+			val = enc_delta;
+			enc_delta = val & 3;
+			sei();
+			return val >> 2;
+		}
+		break;
+	}
+	
+	
+
+	
 }
 
 int LeseKalibrationsbyte(int Index)
@@ -1326,12 +1533,12 @@ void display_time(volatile uint32_t *timestamp, volatile uint32_t *end_timestamp
 		if(timediff < 10)
 		strcat(buffer,"0");
 		strcat(buffer,int_buffer);
-		lcd_gotoxy(x,y);
+		lcd_gotoxy(x,y,port_expander_present);
 		lcd_puts(buffer);
 	}
 	else
 	{
-		lcd_gotoxy(x,y);
+		lcd_gotoxy(x,y,port_expander_present);
 		lcd_puts("         ");
 	}
 	
@@ -1342,6 +1549,8 @@ void display_time_menu(volatile uint32_t *timestamp,bool invert,uint8_t start, u
 		char buffer[10];
 		char int_buffer[3];
 		volatile uint32_t timediff = *timestamp;
+		if(timediff > max_profile_time)
+			timediff = max_profile_time;
 		volatile uint32_t helper = timediff/3600;
 		ultoa(helper,int_buffer,10);
 		if(helper < 10)
@@ -1424,7 +1633,7 @@ void init_profile_a()
 	p_Profile_a->switchoff = false;
 	p_Profile_a->speedup = false;
 	p_Profile_a->CRC_value = calculate_crc32_checksum((unsigned char *)p_Profile_a,sizeof(Speed_profile_t)-4);
-	write_profile(p_Profile_a,1);
+	write_profile(p_Profile_a,0,TWI_FRAM_present,offset_profile_a);
 	
 	
 }
@@ -1444,7 +1653,18 @@ void init_profile_b()
 	p_Profile_b->slowdown_switch = false;
 	p_Profile_b->speedup = false;
 	p_Profile_b->CRC_value = calculate_crc32_checksum((unsigned char *)p_Profile_b,sizeof(Speed_profile_t)-4);
-	write_profile(p_Profile_b,2);
+	write_profile(p_Profile_b,0,TWI_FRAM_present,offset_profile_b);
+	
+}
+
+void init_parameter(p_regulator_parameters_t paramter, uint8_t ID,bool TWI)
+{
+	paramter->I_speed_0 = 100000;
+	paramter->I_speed_1 = 100000;
+	paramter->I_voltage_0 = 100000;
+	paramter->I_voltage_0 = 100000;
+	paramter->CRC_value = calculate_crc32_checksum((unsigned char *)paramter,sizeof(regulator_parameters_t)-4);
+	write_param_profile(paramter,ID,TWI,offset_settings_regulator);
 	
 }
 
@@ -1463,7 +1683,26 @@ void init_profile_mod()
 	p_profile_mod->slowdown_switch = false;
 	p_profile_mod->speedup = false;
 	p_profile_mod->CRC_value = calculate_crc32_checksum((unsigned char *)p_profile_mod,sizeof(Speed_profile_t)-4);
-	write_profile(p_Profile_b,ID_mod+4);
+	write_profile(p_Profile_b,ID_mod,TWI_FRAM_present,offset_profiles);
+	
+}
+
+void init_profile_(p_Speed_profile_t p_profile_)
+{
+	p_profile_->time_fast_init = 2UL * 3600UL;
+	p_profile_->speed_fast = 1100;
+	p_profile_->speed_slow = 600;
+	p_profile_->total_time = 24UL * 3600UL;
+	p_profile_->speed_time = 6UL * 10UL;
+	p_profile_->status = 0;
+	p_profile_->type = type_normal;
+	p_profile_->time_slow = 1UL * 3600UL;
+	p_profile_->slowdown = true;
+	p_profile_->switchoff = false;
+	p_profile_->slowdown_switch = false;
+	p_profile_->speedup = false;
+	p_profile_->CRC_value = calculate_crc32_checksum((unsigned char *)p_profile_,sizeof(Speed_profile_t)-4);
+	//write_profile(p_Profile_b,ID_mod+4,TWI_FRAM_present);
 	
 }
 
@@ -1474,7 +1713,7 @@ int main(void)
 	bool update_display = true;
 	bool high_speed_a = true;
 	bool high_speed_b = false;
-	
+	type_of_encoder = eeprom_read_byte(&type_of_encoder_EE);
 	uint8_t status_a = 0;
 	uint8_t status_b = 0;
 	bool change_a = false;
@@ -1529,31 +1768,52 @@ int main(void)
 	//_delay_ms(1);
 	//PORTC.OUTSET = PIN2_bm;
 	//_delay_ms(1);
-	read_profile(p_Profile_a,1);
-	read_profile(p_Profile_b,2);
+	SPIC_Init();
+	TWI_FRAM_present =  twi_presense_check(&TWIE,FRAM_I2C_ADDR);
+	port_expander_present = twi_presense_check(&TWIE,PCA_I2C_ADDR);
+	read_profile(p_Profile_a,0,TWI_FRAM_present,offset_profile_a);
+	read_profile(p_Profile_b,0,TWI_FRAM_present,offset_profile_b);
+	read_param_profile(p_parameter_a,0,TWI_FRAM_present,offset_profiles);
+	read_param_profile(p_parameter_b,1,TWI_FRAM_present,offset_profiles);
 	if(calculate_crc32_checksum((unsigned char *)p_Profile_a,sizeof(Speed_profile_t)-4) != p_Profile_a->CRC_value)
 		init_profile_a();
 	//if(p_Profile_a->speed_fast < 100)
 		
 	if(calculate_crc32_checksum((unsigned char *)p_Profile_b,sizeof(Speed_profile_t)-4) != p_Profile_b->CRC_value)
 		init_profile_b();
+	if(calculate_crc32_checksum((unsigned char *)p_parameter_a,sizeof(regulator_parameters_t)-4) != p_parameter_a->CRC_value)
+		init_parameter(p_parameter_a,0,TWI_FRAM_present);
+	if(calculate_crc32_checksum((unsigned char *)p_parameter_b,sizeof(regulator_parameters_t)-4) != p_parameter_b->CRC_value)
+		init_parameter(p_parameter_b,1,TWI_FRAM_present);
+	
 	Sollwert_RPM_a = p_Profile_a->speed_fast;
 	Sollwert_RPM_b = p_Profile_b->speed_fast;
 	uint32_t next_change_a = Unixtimestamp + p_Profile_a->time_fast_init;
 	uint32_t end_time_a = Unixtimestamp + p_Profile_a->total_time;
 	uint32_t next_change_b = Unixtimestamp + p_Profile_b->time_fast_init;
 	uint32_t end_time_b = Unixtimestamp + p_Profile_b->total_time;
-	PCA_config();
-	lcd_reset();
-	lcd_init(0);
-	lcd_gotoxy(left,0);
+	if(port_expander_present)
+	{
+		PCA_config();
+		lcd_reset();
+		lcd_init(0);
+	}
+	else
+	{
+		_delay_ms(100);
+		lcd_init_SH1106(0);
+		lcd_gotoxy(1,1,port_expander_present);
+		
+	}
+	
+	lcd_gotoxy(left,0,port_expander_present);
 	char Str1[7];
 	if(PORTB.IN & PIN2_bm)
 		strcpy(Str1,"120 mm") ;
 	else
 		strcpy(Str1,"140 mm") ;
 	lcd_puts(Str1);
-	lcd_gotoxy(right,0);
+	lcd_gotoxy(right,0,port_expander_present);
 	if(PORTB.IN & PIN1_bm)
 	strcpy(Str1,"120 mm") ;
 	else
@@ -1561,10 +1821,47 @@ int main(void)
 	lcd_puts(Str1);
 	char text_buffer[16];
 	char int_buffer[10];
-    
+    bool size_a = false;
+	bool size_b = false;
 	
     while (1) 
     {
+		if((PORTB.IN & PIN2_bm) != size_a)
+		{
+			if(PORTB.IN & PIN2_bm)
+			{
+				size_a = true;
+				I_Anteil_a = p_parameter_a->I_voltage_0;
+				I_Anteil_a = p_parameter_a->I_speed_0;
+				
+			}
+			else
+			{
+				size_a = false;
+				I_Anteil_a = p_parameter_a->I_voltage_1;
+				I_Anteil_a = p_parameter_a->I_speed_1;
+			}
+			
+		}
+		
+		if((PORTB.IN & PIN1_bm) != size_b)
+		{
+			if(PORTB.IN & PIN1_bm)
+			{
+				size_b = true;
+				I_Anteil_b = p_parameter_b->I_voltage_0;
+				I_Anteil_b = p_parameter_b->I_speed_0;
+				
+			}
+			else
+			{
+				size_b = false;
+				I_Anteil_b = p_parameter_b->I_voltage_1;
+				I_Anteil_b = p_parameter_b->I_speed_1;
+			}
+			
+		}
+		
 		
 		EP_DEF_in(ep_out);          // Endpunkt-Tasks
 		EP_DEF_out(ep_in);
@@ -1778,32 +2075,33 @@ int main(void)
 					
 					
 				}
-				if(p_Profile_b->type == type_switch)
+				if(p_Profile_a->type == type_switch)
 				{
-					if(p_Profile_b->switchoff)
+					if(p_Profile_a->switchoff)
 					{
-						end_b = true;
-						if(p_Profile_b->type == type_stop)
+						end_a = true;
+						if(p_Profile_a->type == type_stop)
 						{
-							running_b = false;
+							running_a = false;
 						}
 						else
 						{
-							next_change_b = Unixtimestamp + p_Profile_b->speed_slow;
+							next_change_a = Unixtimestamp + p_Profile_a->speed_slow;
 						}
 						
 						
 						
 					}
-					if(p_Profile_b->speedup)
+					if(p_Profile_a->speedup)
 					{
-						Sollwert_RPM_b = p_Profile_b->speed_fast;
-						p_Profile_b->speedup = false;
-						p_Profile_b->slowdown_switch = true;
-						p_Profile_b->slowdown = false;
-						p_Profile_b->switchoff = false;
+						runtime_a += p_Profile_a->speed_time;
+						Sollwert_RPM_a = p_Profile_a->speed_fast;
+						p_Profile_a->speedup = false;
+						p_Profile_a->slowdown_switch = true;
+						p_Profile_a->slowdown = false;
+						p_Profile_a->switchoff = false;
 						cli();
-						next_change_b = Unixtimestamp + p_Profile_b->speed_time;
+						next_change_a = Unixtimestamp + p_Profile_a->speed_time;
 						sei();
 						
 						
@@ -1811,13 +2109,13 @@ int main(void)
 					}
 					if(p_Profile_a->slowdown_switch)
 					{
-						Sollwert_RPM_b = p_Profile_a->speed_slow;
-						running_b = p_Profile_a->time_fast_init;
-						uint32_t time_b_remaining = p_Profile_a->total_time - running_b;
-						if(time_b_remaining > (p_Profile_a->speed_time+p_Profile_a->time_slow))
+						Sollwert_RPM_a = p_Profile_a->speed_slow;
+						runtime_a += p_Profile_a->time_slow;
+						uint32_t time_a_remaining = p_Profile_a->total_time - runtime_a;
+						if(time_a_remaining > (p_Profile_a->speed_time+p_Profile_a->time_slow))
 						{
 							cli();
-							next_change_b = Unixtimestamp + p_Profile_a->time_slow;
+							next_change_a = Unixtimestamp + p_Profile_a->time_slow;
 							sei();
 							p_Profile_a->speedup = true;
 							p_Profile_a->slowdown = false;
@@ -1826,7 +2124,7 @@ int main(void)
 						}
 						else
 						{
-							next_change_b = Unixtimestamp + time_b_remaining;
+							next_change_a = Unixtimestamp + time_a_remaining;
 							p_Profile_a->slowdown = false;
 							p_Profile_a->switchoff = true;
 							p_Profile_a->speedup = false;
@@ -1836,13 +2134,13 @@ int main(void)
 					
 					if(p_Profile_a->slowdown)
 					{
-						Sollwert_RPM_b = p_Profile_a->speed_slow;
-						running_b = p_Profile_a->time_fast_init;
-						uint32_t time_b_remaining = p_Profile_a->total_time - running_b;
-						if(time_b_remaining > (p_Profile_a->speed_time+p_Profile_a->time_slow))
+						Sollwert_RPM_a = p_Profile_a->speed_slow;
+						runtime_a = p_Profile_a->time_fast_init;
+						uint32_t time_a_remaining = p_Profile_a->total_time - runtime_a;
+						if(time_a_remaining > (p_Profile_a->speed_time+p_Profile_a->time_slow))
 						{
 							cli();
-							next_change_b = Unixtimestamp + p_Profile_a->time_slow;
+							next_change_a = Unixtimestamp + p_Profile_a->time_slow;
 							sei();
 							p_Profile_a->speedup = true;
 							p_Profile_a->slowdown = false;
@@ -1851,7 +2149,7 @@ int main(void)
 						}
 						else
 						{
-							next_change_b = Unixtimestamp + time_b_remaining;
+							next_change_a = Unixtimestamp + time_a_remaining;
 							p_Profile_a->slowdown = false;
 							p_Profile_a->switchoff = true;
 							p_Profile_a->speedup = false;
@@ -1936,7 +2234,8 @@ int main(void)
 					}
 					if(p_Profile_b->speedup)
 					{
-						Sollwert_RPM_b = p_Profile_b->speed_fast;
+						runtime_b += p_Profile_b->time_slow;
+						Sollwert_RPM_b = p_Profile_b->speed_time;
 						p_Profile_b->speedup = false;
 						p_Profile_b->slowdown_switch = true;
 						p_Profile_b->slowdown = false;
@@ -1951,8 +2250,8 @@ int main(void)
 					if(p_Profile_b->slowdown_switch)
 					{
 						Sollwert_RPM_b = p_Profile_b->speed_slow;
-						running_b = p_Profile_b->time_fast_init;
-						uint32_t time_b_remaining = p_Profile_b->total_time - running_b;
+						runtime_b += p_Profile_b->time_slow;
+						uint32_t time_b_remaining = p_Profile_b->total_time - runtime_b;
 						if(time_b_remaining > (p_Profile_b->speed_time+p_Profile_b->time_slow))
 						{
 							cli();
@@ -1976,8 +2275,8 @@ int main(void)
 					if(p_Profile_b->slowdown)
 					{
 						Sollwert_RPM_b = p_Profile_b->speed_slow;
-						running_b = p_Profile_b->time_fast_init;
-						uint32_t time_b_remaining = p_Profile_b->total_time - running_b;
+						runtime_b = p_Profile_b->time_fast_init;
+						uint32_t time_b_remaining = p_Profile_b->total_time - runtime_b;
 						if(time_b_remaining > (p_Profile_b->speed_time+p_Profile_b->time_slow))
 						{
 							cli();
@@ -2050,19 +2349,19 @@ int main(void)
 				if(position_main == 255)
 				position_main = 4;
 				position_main %= 5;
-				lcd_gotoxy(left,0);
+				lcd_gotoxy(left,0,port_expander_present);
 				if(PORTB.IN & PIN2_bm)
 				strcpy(Str1,"120 mm") ;
 				else
 				strcpy(Str1,"140 mm") ;
 				lcd_puts(Str1);
-				lcd_gotoxy(right,0);
+				lcd_gotoxy(right,0,port_expander_present);
 				if(PORTB.IN & PIN1_bm)
 				strcpy(Str1,"120 mm") ;
 				else
 				strcpy(Str1,"140 mm") ;
 				lcd_puts(Str1);
-				lcd_gotoxy(0,1);
+				lcd_gotoxy(0,1,port_expander_present);
 				uint16_t pwm_a = 0x3E8 - TCD0.CCA;
 				uint16_t pwm_b = 0x3E8 - TCD0.CCB;
 				char int_buffer[4];
@@ -2081,7 +2380,7 @@ int main(void)
 				strcat(text_buffer,int_buffer);
 				strcat(text_buffer,helper);
 				lcd_puts(text_buffer);
-				lcd_gotoxy(right,1);
+				lcd_gotoxy(right,1,port_expander_present);
 				if((avg_voltage_b/1000) < 10 )
 				{
 					strcpy(text_buffer," ");
@@ -2097,7 +2396,7 @@ int main(void)
 				lcd_puts(text_buffer);
 				avg_voltage_a = 0;
 				avg_voltage_b = 0;
-				lcd_gotoxy(left,2);
+				lcd_gotoxy(left,2,port_expander_present);
 				if(pwm_a < 10)
 					lcd_puts(" ");
 				if(pwm_a < 100)
@@ -2110,7 +2409,7 @@ int main(void)
 				strcat(text_buffer,int_buffer);
 				strcat(text_buffer," %");
 				lcd_puts(text_buffer);
-				lcd_gotoxy(right,2);
+				lcd_gotoxy(right,2,port_expander_present);
 				if(pwm_b < 10)
 				lcd_puts(" ");
 				if(pwm_b < 100)
@@ -2127,7 +2426,7 @@ int main(void)
 				utoa(RPM_a,text_buffer,10);
 				sei();
 				strcat(text_buffer," RPM");
-				lcd_gotoxy(left,3);
+				lcd_gotoxy(left,3,port_expander_present);
 				if(RPM_a < 10)
 					lcd_puts(" ");
 				if(RPM_a < 100)
@@ -2136,7 +2435,7 @@ int main(void)
 					lcd_puts(" ");
 				lcd_puts(text_buffer);
 				utoa(Sollwert_RPM_a,text_buffer,10);
-				lcd_gotoxy(left,4);
+				lcd_gotoxy(left,4,port_expander_present);
 				if(Sollwert_RPM_a < 10)
 					lcd_puts(" ");
 				if(Sollwert_RPM_a < 100)
@@ -2152,7 +2451,7 @@ int main(void)
 				utoa(RPM_b,text_buffer,10);
 				sei();
 				strcat(text_buffer," RPM");
-				lcd_gotoxy(right,3);
+				lcd_gotoxy(right,3,port_expander_present);
 				if(RPM_b < 10)
 				lcd_puts(" ");
 				if(RPM_b < 100)
@@ -2162,7 +2461,7 @@ int main(void)
 				lcd_puts(text_buffer);
 				utoa(Sollwert_RPM_b,text_buffer,10);
 				strcat(text_buffer," RPM");
-				lcd_gotoxy(right,4);
+				lcd_gotoxy(right,4,port_expander_present);
 				if(Sollwert_RPM_b < 10)
 				lcd_puts(" ");
 				if(Sollwert_RPM_b < 100)
@@ -2177,15 +2476,15 @@ int main(void)
 				if(position_main == 0 )
 				{
 					get_key_short( 1<<KEY0 );
-					lcd_gotoxy(left-1,4);
+					lcd_gotoxy(left-1,4,port_expander_present);
 					lcd_puts(" ");
-					lcd_gotoxy(right-1,4);
+					lcd_gotoxy(right-1,4,port_expander_present);
 					lcd_puts(" ");
-					lcd_gotoxy(left-1,7);
+					lcd_gotoxy(left-1,7,port_expander_present);
 					lcd_puts(" ");
-					lcd_gotoxy(right-1,7);
+					lcd_gotoxy(right-1,7,port_expander_present);
 					lcd_puts(" ");
-					lcd_gotoxy(left,7);
+					lcd_gotoxy(left,7,port_expander_present);
 					if(status_a == 0)
 						lcd_puts("Auto/Aus");
 					if(status_a == 1)
@@ -2196,7 +2495,7 @@ int main(void)
 						lcd_puts("Hand/An  ");
 					if(status_a == 4)
 						lcd_puts("Reset   ");
-					lcd_gotoxy(right,7);
+					lcd_gotoxy(right,7,port_expander_present);
 					if(status_b == 0)
 					lcd_puts("Auto/Aus");
 					if(status_b == 1)
@@ -2217,15 +2516,15 @@ int main(void)
 						else
 							change_a = true;
 					}
-					lcd_gotoxy(left-1,4);
+					lcd_gotoxy(left-1,4,port_expander_present);
 					lcd_puts(" ");
-					lcd_gotoxy(right-1,4);
+					lcd_gotoxy(right-1,4,port_expander_present);
 					lcd_puts(" ");
-					lcd_gotoxy(left-1,7);
+					lcd_gotoxy(left-1,7,port_expander_present);
 					lcd_puts(">");
-					lcd_gotoxy(right-1,7);
+					lcd_gotoxy(right-1,7,port_expander_present);
 					lcd_puts(" ");
-					lcd_gotoxy(left,7);
+					lcd_gotoxy(left,7,port_expander_present);
 					if(change_a)
 					{
 						if(status_a == 0)
@@ -2238,7 +2537,7 @@ int main(void)
 							lcd_puts_invert("Hand/An ");
 						if(status_a == 4)
 							lcd_puts_invert("Reset   ");
-						lcd_gotoxy(right,7);
+						lcd_gotoxy(right,7,port_expander_present);
 						if(status_b == 0)
 						lcd_puts("Auto/Aus");
 						if(status_b == 1)
@@ -2262,7 +2561,7 @@ int main(void)
 							lcd_puts("Hand/An ");
 						if(status_a == 4)
 							lcd_puts("Reset   ");
-						lcd_gotoxy(right,7);
+						lcd_gotoxy(right,7,port_expander_present);
 						if(status_b == 0)
 						lcd_puts("Auto/Aus");
 						if(status_b == 1)
@@ -2286,15 +2585,15 @@ int main(void)
 						else
 						change_b = true;
 					}
-					lcd_gotoxy(left-1,4);
+					lcd_gotoxy(left-1,4,port_expander_present);
 					lcd_puts(" ");
-					lcd_gotoxy(right-1,4);
+					lcd_gotoxy(right-1,4,port_expander_present);
 					lcd_puts(" ");
-					lcd_gotoxy(left-1,7);
+					lcd_gotoxy(left-1,7,port_expander_present);
 					lcd_puts(" ");
-					lcd_gotoxy(right-1,7);
+					lcd_gotoxy(right-1,7,port_expander_present);
 					lcd_puts(">");
-					lcd_gotoxy(left,7);
+					lcd_gotoxy(left,7,port_expander_present);
 					if(change_b)
 					{
 						if(status_a == 0)
@@ -2307,7 +2606,7 @@ int main(void)
 						lcd_puts("Hand/An ");
 						if(status_a == 4)
 						lcd_puts("Reset   ");
-						lcd_gotoxy(right,7);
+						lcd_gotoxy(right,7,port_expander_present);
 						if(status_b == 0)
 						lcd_puts_invert("Auto/Aus");
 						if(status_b == 1)
@@ -2332,7 +2631,7 @@ int main(void)
 						lcd_puts("Hand/An ");
 						if(status_a == 4)
 						lcd_puts("Reset   ");
-						lcd_gotoxy(right,7);
+						lcd_gotoxy(right,7,port_expander_present);
 						if(status_b == 0)
 						lcd_puts("Auto/Aus");
 						if(status_b == 1)
@@ -2355,13 +2654,13 @@ int main(void)
 						else
 							change_speed_a = true;
 					}
-					lcd_gotoxy(left-1,4);
+					lcd_gotoxy(left-1,4,port_expander_present);
 					lcd_puts(">");
-					lcd_gotoxy(right-1,4);
+					lcd_gotoxy(right-1,4,port_expander_present);
 					lcd_puts(" ");
-					lcd_gotoxy(left-1,7);
+					lcd_gotoxy(left-1,7,port_expander_present);
 					lcd_puts(" ");
-					lcd_gotoxy(right-1,7);
+					lcd_gotoxy(right-1,7,port_expander_present);
 					lcd_puts(" ");
 					
 				}
@@ -2374,13 +2673,13 @@ int main(void)
 						else
 						change_speed_b = true;
 					}
-					lcd_gotoxy(left-1,4);
+					lcd_gotoxy(left-1,4,port_expander_present);
 					lcd_puts(" ");
-					lcd_gotoxy(right-1,4);
+					lcd_gotoxy(right-1,4,port_expander_present);
 					lcd_puts(">");
-					lcd_gotoxy(left-1,7);
+					lcd_gotoxy(left-1,7,port_expander_present);
 					lcd_puts(" ");
-					lcd_gotoxy(right-1,7);
+					lcd_gotoxy(right-1,7,port_expander_present);
 					lcd_puts(" ");
 					
 				}
@@ -2402,19 +2701,19 @@ int main(void)
 						if(screen_clear)
 						{
 							screen_clear = false;
-							lcd_clrscr();
+							lcd_clrscr(port_expander_present);
 						}
-						lcd_gotoxy(1,0);
+						lcd_gotoxy(1,0,port_expander_present);
 						lcd_puts("Profil links:");
-						lcd_gotoxy(1,1);
+						lcd_gotoxy(1,1,port_expander_present);
 						lcd_puts("Profil rechts:");
-						lcd_gotoxy(1,2);
+						lcd_gotoxy(1,2,port_expander_present);
 						lcd_puts("Profile bearbeiten");
-						lcd_gotoxy(1,3);
+						lcd_gotoxy(1,3,port_expander_present);
 						lcd_puts("Regelparm. 1");
-						lcd_gotoxy(1,4);
+						lcd_gotoxy(1,4,port_expander_present);
 						lcd_puts("Regelparm. 2");
-						lcd_gotoxy(1,5);
+						lcd_gotoxy(1,5,port_expander_present);
 						lcd_puts("Exit");
 						
 						if(position != old_position)
@@ -2425,7 +2724,7 @@ int main(void)
 							old_position = position;
 							for(uint8_t i= 0;i<6;i++)
 							{
-								lcd_gotoxy(0,i);
+								lcd_gotoxy(0,i,port_expander_present);
 								if(i == position)
 								{
 									lcd_puts(">");
@@ -2451,7 +2750,7 @@ int main(void)
 								show_menu = false;
 								recalc_time = true;
 								update_display = true;
-								lcd_clrscr();
+								lcd_clrscr(port_expander_present);
 								
 							}
 						}			
@@ -2471,7 +2770,7 @@ int main(void)
 							old_position = position;
 							for(uint8_t i= 0;i<8;i++)
 							{
-								lcd_gotoxy(0,i);
+								lcd_gotoxy(0,i,port_expander_present);
 								if(i == position)
 								{
 									lcd_puts(">");
@@ -2490,7 +2789,7 @@ int main(void)
 								menu.menu_point = 0;
 								screen_clear = true;
 								p_Profile_a->CRC_value = calculate_crc32_checksum((unsigned char *)p_Profile_a,sizeof(Speed_profile_t)-4);
-								write_profile(p_Profile_a,1);
+								write_profile(p_Profile_a,0,TWI_FRAM_present,offset_profile_a);
 							}
 							else
 							{
@@ -2512,7 +2811,7 @@ int main(void)
 							old_position = position;
 							for(uint8_t i= 0;i<8;i++)
 							{
-								lcd_gotoxy(0,i);
+								lcd_gotoxy(0,i,port_expander_present);
 								if(i == position)
 								{
 									lcd_puts(">");
@@ -2529,7 +2828,7 @@ int main(void)
 							if(position == 0)
 							{
 								p_Profile_b->CRC_value = calculate_crc32_checksum((unsigned char *)p_Profile_b,sizeof(Speed_profile_t)-4);
-								write_profile(p_Profile_b,2);
+								write_profile(p_Profile_b,0,TWI_FRAM_present,offset_profile_b);
 								menu.menu_point = 0;
 								screen_clear = true;
 							}
@@ -2553,7 +2852,7 @@ int main(void)
 							old_position = position;
 							for(uint8_t i= 0;i<8;i++)
 							{
-								lcd_gotoxy(0,i);
+								lcd_gotoxy(0,i,port_expander_present);
 								if(i == position)
 								{
 									lcd_puts(">");
@@ -2572,7 +2871,89 @@ int main(void)
 								menu.menu_point = 0;
 								screen_clear = true;
 								p_profile_mod->CRC_value = calculate_crc32_checksum((unsigned char *)p_profile_mod,sizeof(Speed_profile_t)-4);
-								write_profile(p_profile_mod,ID_mod+4);
+								write_profile(p_profile_mod,ID_mod,TWI_FRAM_present,offset_profiles);
+							}
+							else
+							{
+								menu.sub_menu = position <<4;
+							}
+						}
+						
+						
+					}
+					break;
+					case 0x13:
+					{
+						change_parameter_settings(p_parameter_a,true,&position,int_buffer,&screen_clear,&old_position);
+						if(position != old_position)
+						{
+							if(position == 255)
+							position = 3;
+							position = position%4;
+							old_position = position;
+							for(uint8_t i= 0;i<4;i++)
+							{
+								lcd_gotoxy(0,i,port_expander_present);
+								if(i == position)
+								{
+									lcd_puts(">");
+								}
+								else
+								{
+									lcd_puts(" ");
+								}
+							}
+						}
+						
+						if(get_key_short( 1<<KEY0 ))
+						{
+							if(position == 0)
+							{
+								menu.menu_point = 0;
+								screen_clear = true;
+								p_parameter_a->CRC_value = calculate_crc32_checksum((unsigned char *)p_parameter_a,sizeof(Speed_profile_t)-4); 
+								write_param_profile(p_parameter_a,0,TWI_FRAM_present,offset_profiles);
+							}
+							else
+							{
+								menu.sub_menu = position <<4;
+							}
+						}
+						
+						
+					}
+					break;
+					case 0x14:
+					{
+						change_parameter_settings(p_parameter_a,false,&position,int_buffer,&screen_clear,&old_position);
+						if(position != old_position)
+						{
+							if(position == 255)
+							position = 3;
+							position = position%4;
+							old_position = position;
+							for(uint8_t i= 0;i<4;i++)
+							{
+								lcd_gotoxy(0,i,port_expander_present);
+								if(i == position)
+								{
+									lcd_puts(">");
+								}
+								else
+								{
+									lcd_puts(" ");
+								}
+							}
+						}
+						
+						if(get_key_short( 1<<KEY0 ))
+						{
+							if(position == 0)
+							{
+								menu.menu_point = 0;
+								screen_clear = true;
+								p_parameter_b->CRC_value = calculate_crc32_checksum((unsigned char *)p_parameter_a,sizeof(Speed_profile_t)-4);
+								write_param_profile(p_parameter_b,1,TWI_FRAM_present,offset_profiles);
 							}
 							else
 							{

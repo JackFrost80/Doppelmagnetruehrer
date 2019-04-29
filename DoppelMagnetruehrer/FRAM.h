@@ -16,8 +16,14 @@
 
 #define FRAM_I2C_ADDR	0xA0
 
-void read_profile(p_Speed_profile_t proile,uint8_t ID);
-void write_profile(p_Speed_profile_t proile,uint8_t ID);
+void set_WREN();
+void read_profile(p_Speed_profile_t proile,uint8_t ID,bool use_twi,uint16_t offset);
+void write_profile(p_Speed_profile_t proile,uint8_t ID,bool use_twi,uint16_t offset);
+void read_param_profile(p_regulator_parameters_t proile,uint8_t ID,bool use_twi,uint16_t offset);
+void write_param_profile(p_regulator_parameters_t proile,uint8_t ID,bool use_twi,uint16_t offset);
+void Write_to_SPI_FRAM(uint8_t *writeData,uint16_t Adress,uint8_t bytes);
+void Read_from_SPI_FRAM(uint8_t *readData,uint16_t Adress,uint8_t bytes);
+
 
 
 

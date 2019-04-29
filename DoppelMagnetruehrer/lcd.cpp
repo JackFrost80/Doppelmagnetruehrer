@@ -46,6 +46,7 @@
 #include "lcd.h"
 #include "twi.h"
 #include "SD1306.h"
+#include "SH1106.h"
 #include <avr/interrupt.h>
 #include <util/delay.h>
 
@@ -209,8 +210,8 @@ const uint8_t ssd1306_init_sequence [] PROGMEM = {	// Initialization Sequence
 //
 //};
 
-void lcd_home(void){
-	lcd_gotoxy(0, 0);
+void lcd_home(bool SSH1306){
+	lcd_gotoxy(0, 0,SSH1306);
 }
 
 void PCA_config()
@@ -232,6 +233,44 @@ void lcd_reset()
 	
 	data_[1] = (1<<0);
 	twi_write(&TWIE,data_,PCA_I2C_ADDR,DATA,2,0,1,0);
+	
+}
+
+void sendCommand(uint8_t data)
+{
+	twi_write(&TWIE,&data,LCD_I2C_ADDR,COMMAND,1,0,0,1);
+}
+
+void lcd_init_SH1106(uint8_t dispAttr){
+	 sendCommand(0xAE);    /*display off*/
+
+	 sendCommand(0x02);    /*set lower column address*/
+	 sendCommand(0x10);    /*set higher column address*/
+	 sendCommand(0x40);//0x40);    /*set display start line*/
+	 sendCommand(0xB0);    /*set page address*/
+	 sendCommand(0x81);    /*contract control*/
+	 sendCommand(0x80);//contrast);    /*128*/
+	 sendCommand(0xA1);    /*set segment remap*/
+	 sendCommand(0xA6);//invertSetting);    /*normal / reverse*/
+	 sendCommand(0xA8);    /*multiplex ratio*/
+	 sendCommand(0x3F);    /*duty = 1/32*/
+	 sendCommand(0xAD);    /*set charge pump enable*/
+	 sendCommand(0x8B);     /*external VCC   */
+	 sendCommand(0x30);    // | Vpp);    /*0X30---0X33  set VPP   9V liangdu!!!!*/
+	 sendCommand(0xC8);    /*Com scan direction*/
+	 sendCommand(0xD3);    /*set display offset*/
+	 sendCommand(0x00);   /*   0x20  */
+	 sendCommand(0xD5);    /*set osc division*/
+	 sendCommand(0x80);
+	 sendCommand(0xD9);    /*set pre-charge period*/
+	 sendCommand(0x1F);    /*0x22*/
+	 sendCommand(0xDA);    /*set COM pins*/
+	 sendCommand(0x12);
+	 sendCommand(0xDB);    /*set vcomh*/
+	 sendCommand(0x40);
+	 sendCommand(0xAF);    /*display ON*/
+	 lcd_clrscr(false);
+	 
 	
 }
 
@@ -279,7 +318,7 @@ void lcd_init(uint8_t dispAttr){
 		SSD1306_DEACTIVATE_SCROLL,
 		SSD1306_DISPLAYON }; // Main screen turn on
 	twi_write(&TWIE,init5,LCD_I2C_ADDR,COMMAND,6,0,0,1);
-	lcd_clrscr();
+	lcd_clrscr(true);
 }
 
 
@@ -295,21 +334,62 @@ void lcd_init(uint8_t dispAttr){
     //lcd_send_i2c_byte(data);
     //lcd_send_i2c_stop();
 //}
-void lcd_gotoxy(uint8_t x, uint8_t y){
+void lcd_gotoxy(uint8_t x, uint8_t y,bool SSH1306){
 	x *= 6;
 	uint8_t helper[4];
-	helper[0] = 0xb0 + y;	// set page start to y
-	helper[1] = 0x21;		// set column start	
-	helper[2] = x; 			// to x
+	if(SSH1306)
+	{
+		helper[0] = 0xb0 + y;	// set page start to y
+		helper[1] = 0x21;		// set column start
+		helper[2] = x; 			// to x
+		helper[3] = 0x7f;		// set column end to 127
+		twi_write(&TWIE,helper,LCD_I2C_ADDR,0x00,4,0,0,1);  // Write data to I2C
+	}
+	else
+	{
+		helper[0] = (x+2) & 0x0F;	// lower nibble
+	twi_write(&TWIE,helper,LCD_I2C_ADDR,0x00,1,0,0,1);  // Write data to I2C
+	helper[0] = 0x10 | (x+2) >> 4;		// set column start
+	twi_write(&TWIE,helper,LCD_I2C_ADDR,0x00,1,0,0,1);  // Write data to I2C
+	helper[0] = 0xB0 | (y & 0x0F); //page
+	twi_write(&TWIE,helper,LCD_I2C_ADDR,0x00,1,0,0,1);  // Write data to I2C
 	helper[3] = 0x7f;		// set column end to 127
-	twi_write(&TWIE,helper,LCD_I2C_ADDR,0x00,4,0,0,1);  // Write data to I2C
+	//twi_write(&TWIE,helper,LCD_I2C_ADDR,0x00,3,0,0,1);  // Write data to I2C
+	}
+	
 }
-void lcd_clrscr(void){
-    lcd_home();
+void lcd_clrscr(bool SSH1306){
+    lcd_home(SSH1306);
 	uint8_t helper = 0x00 ;
-	for(uint8_t i=0;i<8;i++)
+	if(SSH1306)
+	{
+		for(uint8_t i=0;i<8;i++)
 		twi_write(&TWIE,&helper,LCD_I2C_ADDR,0x40,128,1,0,1);
-	lcd_home();
+	}
+	else
+	{
+		for (uint8_t page = 0; page < 8; page++) {
+
+			// Set the current RAM pointer to the start of the currently
+			// selected page.
+			sendCommand(0x00); // Set column number 0 (low nibble)
+			sendCommand(0x10); // Set column number 0 (high nibble)
+			sendCommand(0xB0 | (page & 0x0F)); // Set page number
+
+			// Send a single page (128 bytes) of data.
+			// Without knowing the rest of your program I don't know the right
+			// data sending routines to use, so I made them up. Change it to
+			// do it how your program expects.  Maybe with your SendArray
+			// function.
+
+			uint8_t helper = 0x00 ;
+			for (uint8_t col = 0; col < 132; col++) {
+				twi_write(&TWIE,&helper,LCD_I2C_ADDR,DATA,1,0,0,1);
+			}
+		}
+		
+	}
+	lcd_home(SSH1306);
 }
 void lcd_putc(char c){
 	static uint8_t data[6];

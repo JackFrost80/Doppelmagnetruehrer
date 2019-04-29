@@ -43,6 +43,7 @@ C_SRCS +=  \
 ../lcd.cpp \
 ../main.cpp \
 ../menu.cpp \
+../SPI.cpp \
 ../twi.cpp \
 ../usb_cdc.c \
 ../usb_ep.c \
@@ -62,6 +63,7 @@ FRAM.o \
 lcd.o \
 main.o \
 menu.o \
+SPI.o \
 twi.o \
 usb_cdc.o \
 usb_ep.o \
@@ -74,6 +76,7 @@ FRAM.o \
 lcd.o \
 main.o \
 menu.o \
+SPI.o \
 twi.o \
 usb_cdc.o \
 usb_ep.o \
@@ -86,6 +89,7 @@ FRAM.d \
 lcd.d \
 main.d \
 menu.d \
+SPI.d \
 twi.d \
 usb_cdc.d \
 usb_ep.d \
@@ -98,6 +102,7 @@ FRAM.d \
 lcd.d \
 main.d \
 menu.d \
+SPI.d \
 twi.d \
 usb_cdc.d \
 usb_ep.d \
@@ -153,6 +158,13 @@ LINKER_SCRIPT_DEP+=
 	
 
 ./menu.o: .././menu.cpp
+	@echo Building file: $<
+	@echo Invoking: AVR8/GNU C Compiler : 5.4.0
+	$(QUOTE)C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avr8-gnu-toolchain\bin\avr-g++.exe$(QUOTE) -funsigned-char -funsigned-bitfields -DDEBUG -DF_CPU=32000000 -DF_USB=48000000  -I"C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\XMEGAA_DFP\1.1.68\include"  -O1 -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -g2 -Wall -mmcu=atxmega64a4u -B "C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\XMEGAA_DFP\1.1.68\gcc\dev\atxmega64a4u" -c -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)"   -o "$@" "$<" 
+	@echo Finished building: $<
+	
+
+./SPI.o: .././SPI.cpp
 	@echo Building file: $<
 	@echo Invoking: AVR8/GNU C Compiler : 5.4.0
 	$(QUOTE)C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avr8-gnu-toolchain\bin\avr-g++.exe$(QUOTE) -funsigned-char -funsigned-bitfields -DDEBUG -DF_CPU=32000000 -DF_USB=48000000  -I"C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\XMEGAA_DFP\1.1.68\include"  -O1 -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -g2 -Wall -mmcu=atxmega64a4u -B "C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\XMEGAA_DFP\1.1.68\gcc\dev\atxmega64a4u" -c -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)"   -o "$@" "$<" 

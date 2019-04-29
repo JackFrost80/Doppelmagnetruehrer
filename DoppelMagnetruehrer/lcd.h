@@ -80,14 +80,17 @@
 
 
 void lcd_init(uint8_t dispAttr);
+void lcd_init_SH1106(uint8_t dispAttr);
+void sendCommand(uint8_t);
 void lcd_home(void);
 void lcd_reset();
 void PCA_config();
 
+void lcd_gotoxy(uint8_t x, uint8_t y,bool SSH1306);
 void lcd_command(uint8_t cmd);				// transmit command to display
 void lcd_data(uint8_t data);				// transmit data to display
-void lcd_gotoxy(uint8_t x, uint8_t y);		// set curser at pos x, y. x means character, y means line (page, refer lcd manual)
-void lcd_clrscr(void);						// clear screen
+void lcd_home(bool SSH1306);				// set curser at pos x, y. x means character, y means line (page, refer lcd manual)
+void lcd_clrscr(bool SSH1306);						// clear screen
 void lcd_putc(char c);						// print character on screen
 void lcd_puts(const char* s);				// print string, \n-terminated, from ram on screen
 void lcd_puts_p(const char* progmem_s);		// print string from flash on screen

@@ -101,4 +101,36 @@ void twi_read(TWI_t *twiname, uint8_t *readData,uint8_t page_adress, uint16_t Ad
 	}
 }
 
+bool twi_presense_check(TWI_t *twiname,uint8_t Adress)
+{
+		TWIE_MASTER_CTRLC &= ~((1<<TWI_MASTER_ACKACT_bp));
+		twiname->MASTER.ADDR = Adress;
+		while (!(TWIE.MASTER.STATUS & TWI_MASTER_WIF_bm));
+		if(TWIE_MASTER_STATUS & (1<<TWI_MASTER_ARBLOST_bp))
+		{
+			twiname->MASTER.CTRLA = 0;
+			PORTE.DIRSET = PIN1_bm;
+			for(uint8_t i=0;i<9;i++)
+			{
+				PORTE.OUTSET = PIN1_bm;
+				_delay_us(20);
+				PORTE.OUTCLR = PIN1_bm;
+				_delay_us(20);
+			}
+			PORTE.DIRCLR = PIN1_bm;
+			twiname->MASTER.CTRLA = TWI_MASTER_ENABLE_bm;
+			twiname->MASTER.STATUS = TWI_MASTER_ARBLOST_bm | TWI_MASTER_BUSERR_bm;
+			twiname->MASTER.STATUS = TWI_MASTER_BUSSTATE_IDLE_gc;
+			TWIE.MASTER.CTRLC = TWI_MASTER_CMD_STOP_gc;
+			twiname->MASTER.ADDR = Adress;
+			if(TWIE_MASTER_STATUS & (1<<TWI_MASTER_ARBLOST_bp));
+		}
+		twiname->MASTER.CTRLC = TWI_MASTER_CMD_STOP_gc;
+		bool status = true;
+		if(twiname->MASTER.STATUS & TWI_MASTER_RXACK_bm)
+			status = false;
+		return status;
+	
+}
+
 
