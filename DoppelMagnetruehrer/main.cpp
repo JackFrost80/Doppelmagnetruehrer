@@ -18,6 +18,7 @@
 #include "FRAM.h"
 #include "CRC.h"
 #include "SPI.h"
+#include "mem-check.h"
 
 extern "C"
 {
@@ -25,7 +26,7 @@ extern "C"
 }
 
 
-
+#define Build "0.8b"
 #define CLK_Prescaler 0x00
 #define PLL_Faktor 16
 #define CPU_SPEED 32000000UL
@@ -408,6 +409,28 @@ void Blink_LED(PORT_t* port,uint8_t Pin_blink ,uint8_t Takt, uint8_t Frequenz)
 	port->OUTTGL = 1<<Pin_blink;
 }
 
+void info_data(uint16_t free_ram,char *int_buffer,bool *screen_clear_)
+{
+	if(*screen_clear_)
+	{
+		*screen_clear_ = false;
+		lcd_clrscr(port_expander_present);
+		lcd_gotoxy(1,0,port_expander_present);
+		lcd_puts("Info");
+		lcd_gotoxy(1,1,port_expander_present);
+		lcd_puts("Free RAM: ");
+		if(free_ram <10)
+			lcd_puts(" ");
+		utoa(free_ram,int_buffer,10);
+		lcd_puts(int_buffer);
+		lcd_puts(" %");
+		lcd_gotoxy(1,2,port_expander_present);
+		lcd_puts("Build: ");
+		lcd_puts(Build);
+	}
+	
+}
+
 void change_parameter_settings(p_regulator_parameters_t paramters_,bool seite, uint8_t *position_,char *int_buffer,bool *screen_clear_,uint8_t *old_position_)
 {
 	if(*screen_clear_)
@@ -420,7 +443,9 @@ void change_parameter_settings(p_regulator_parameters_t paramters_,bool seite, u
 		else
 			lcd_puts("Regelparamter rechts");
 		lcd_gotoxy(1,1,port_expander_present);
-		lcd_puts(" I Vcc 120 mm:");
+		lcd_puts("Vcc 120 mm:");
+		if(paramters_->I_voltage_0/1000 <1000)
+		lcd_puts(" ");
 		if(paramters_->I_voltage_0/100 <100)
 		lcd_puts(" ");
 		if(paramters_->I_voltage_0/100 <10)
@@ -428,7 +453,9 @@ void change_parameter_settings(p_regulator_parameters_t paramters_,bool seite, u
 		utoa(paramters_->I_voltage_0/100,int_buffer,10);
 		lcd_puts(int_buffer);
 		lcd_gotoxy(1,2,port_expander_present);
-		lcd_puts("I Speed 120 mm:");
+		lcd_puts("Speed 120 mm:");
+		if(paramters_->I_speed_0/1000 <1000)
+		lcd_puts(" ");
 		if(paramters_->I_speed_0/1000 <100)
 		lcd_puts(" ");
 		if(paramters_->I_speed_0/1000 <10)
@@ -437,30 +464,36 @@ void change_parameter_settings(p_regulator_parameters_t paramters_,bool seite, u
 		lcd_puts(int_buffer);
 		
 		lcd_gotoxy(1,3,port_expander_present);
-		lcd_puts(" I Vcc 140 mm:");
-		if(paramters_->I_voltage_0/100 <100)
+		lcd_puts("Vcc 140 mm:");
+		if(paramters_->I_voltage_1/1000 <1000)
 		lcd_puts(" ");
-		if(paramters_->I_voltage_0/100 <10)
+		if(paramters_->I_voltage_1/100 <100)
 		lcd_puts(" ");
-		utoa(paramters_->I_voltage_0/100,int_buffer,10);
+		if(paramters_->I_voltage_1/100 <10)
+		lcd_puts(" ");
+		utoa(paramters_->I_voltage_1/100,int_buffer,10);
 		lcd_puts(int_buffer);
 		lcd_gotoxy(1,4,port_expander_present);
-		lcd_puts("I Speed 140 mm:");
-		if(paramters_->I_speed_0/1000 <100)
+		lcd_puts("Speed 140 mm:");
+		if(paramters_->I_speed_1/1000 <1000)
 		lcd_puts(" ");
-		if(paramters_->I_speed_0/1000 <10)
+		if(paramters_->I_speed_1/1000 <100)
 		lcd_puts(" ");
-		utoa(paramters_->I_speed_0/1000,int_buffer,10);
+		if(paramters_->I_speed_1/1000 <10)
+		lcd_puts(" ");
+		utoa(paramters_->I_speed_1/1000,int_buffer,10);
 		lcd_puts(int_buffer);
-				
+	}
 		if(menu.sub_menu >0)
 		{
 			switch(menu.sub_menu)
 			{
 				case 0x10:
 				{
-					paramters_->I_voltage_0 += encode_read2()*100;
-					lcd_gotoxy(12,1,port_expander_present);
+					paramters_->I_voltage_0 += encode_read2()*100UL;
+					lcd_gotoxy(16,1,port_expander_present);
+					if(paramters_->I_voltage_0/1000 <1000)
+					lcd_puts(" ");
 					if(paramters_->I_voltage_0/100 <100)
 					lcd_puts(" ");
 					if(paramters_->I_voltage_0/100 <10)
@@ -480,8 +513,10 @@ void change_parameter_settings(p_regulator_parameters_t paramters_,bool seite, u
 				break;
 				case 0x20:
 				{
-					paramters_->I_speed_0 += encode_read2()*100;
-					lcd_gotoxy(12,1,port_expander_present);
+					paramters_->I_speed_0 += encode_read2()*100UL;
+					lcd_gotoxy(62,2,port_expander_present);
+					if(paramters_->I_speed_0/1000 <1000)
+					lcd_puts(" ");
 					if(paramters_->I_speed_0/100 <100)
 					lcd_puts(" ");
 					if(paramters_->I_speed_0/100 <10)
@@ -501,8 +536,10 @@ void change_parameter_settings(p_regulator_parameters_t paramters_,bool seite, u
 				break;
 				case 0x30:
 				{
-					paramters_->I_voltage_1 += encode_read2()*100;
-					lcd_gotoxy(12,1,port_expander_present);
+					paramters_->I_voltage_1 += encode_read2()*100UL;
+					lcd_gotoxy(12,3,port_expander_present);
+					if(paramters_->I_voltage_1/1000 <1000)
+					lcd_puts(" ");
 					if(paramters_->I_voltage_1/100 <100)
 					lcd_puts(" ");
 					if(paramters_->I_voltage_1/100 <10)
@@ -522,8 +559,10 @@ void change_parameter_settings(p_regulator_parameters_t paramters_,bool seite, u
 				break;
 				case 0x40:
 				{
-					paramters_->I_speed_1 += encode_read2()*100;
-					lcd_gotoxy(12,1,port_expander_present);
+					paramters_->I_speed_1 += encode_read2()*100UL;
+					lcd_gotoxy(12,4,port_expander_present);
+					if(paramters_->I_speed_1/1000 <1000)
+					lcd_puts(" ");
 					if(paramters_->I_speed_1/100 <100)
 					lcd_puts(" ");
 					if(paramters_->I_speed_1/100 <10)
@@ -556,7 +595,7 @@ void change_parameter_settings(p_regulator_parameters_t paramters_,bool seite, u
 			}
 		}
 		
-	}
+	
 }
 
 void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *int_buffer,uint8_t *old_position_,uint8_t *ID_,bool *screen_clear_)
@@ -910,7 +949,7 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 {
 
 	static bool change = false;
-	static bool reload = true;
+	static bool reload = false;
 	static uint8_t ID_ = 0;
 	if(reload)
 	{
@@ -1708,6 +1747,7 @@ void init_profile_(p_Speed_profile_t p_profile_)
 
 int main(void)
 {  
+	uint16_t Ram = 0;
 	uint16_t test = 0;
 	uint8_t position = 0;
 	bool update_display = true;
@@ -1773,8 +1813,8 @@ int main(void)
 	port_expander_present = twi_presense_check(&TWIE,PCA_I2C_ADDR);
 	read_profile(p_Profile_a,0,TWI_FRAM_present,offset_profile_a);
 	read_profile(p_Profile_b,0,TWI_FRAM_present,offset_profile_b);
-	read_param_profile(p_parameter_a,0,TWI_FRAM_present,offset_profiles);
-	read_param_profile(p_parameter_b,1,TWI_FRAM_present,offset_profiles);
+	read_param_profile(p_parameter_a,0,TWI_FRAM_present,offset_settings_regulator);
+	read_param_profile(p_parameter_b,1,TWI_FRAM_present,offset_settings_regulator);
 	if(calculate_crc32_checksum((unsigned char *)p_Profile_a,sizeof(Speed_profile_t)-4) != p_Profile_a->CRC_value)
 		init_profile_a();
 	//if(p_Profile_a->speed_fast < 100)
@@ -1826,6 +1866,7 @@ int main(void)
 	
     while (1) 
     {
+		Ram = get_mem_unused()/41;
 		if((PORTB.IN & PIN2_bm) != size_a)
 		{
 			if(PORTB.IN & PIN2_bm)
@@ -2077,8 +2118,10 @@ int main(void)
 				}
 				if(p_Profile_a->type == type_switch)
 				{
-					if(p_Profile_a->switchoff)
+					bool change = true;
+					if(p_Profile_a->switchoff && change)
 					{
+						change = false;
 						end_a = true;
 						if(p_Profile_a->type == type_stop)
 						{
@@ -2092,8 +2135,9 @@ int main(void)
 						
 						
 					}
-					if(p_Profile_a->speedup)
+					if(p_Profile_a->speedup && change)
 					{
+						change = false;
 						runtime_a += p_Profile_a->speed_time;
 						Sollwert_RPM_a = p_Profile_a->speed_fast;
 						p_Profile_a->speedup = false;
@@ -2107,8 +2151,9 @@ int main(void)
 						
 						
 					}
-					if(p_Profile_a->slowdown_switch)
+					if(p_Profile_a->slowdown_switch && change)
 					{
+						change = false;
 						Sollwert_RPM_a = p_Profile_a->speed_slow;
 						runtime_a += p_Profile_a->time_slow;
 						uint32_t time_a_remaining = p_Profile_a->total_time - runtime_a;
@@ -2120,6 +2165,7 @@ int main(void)
 							p_Profile_a->speedup = true;
 							p_Profile_a->slowdown = false;
 							p_Profile_a->switchoff = false;
+							p_Profile_a->slowdown_switch = false;
 							
 						}
 						else
@@ -2128,12 +2174,14 @@ int main(void)
 							p_Profile_a->slowdown = false;
 							p_Profile_a->switchoff = true;
 							p_Profile_a->speedup = false;
+							p_Profile_a->slowdown_switch = false;;
 						}
 						
 					}
 					
-					if(p_Profile_a->slowdown)
+					if(p_Profile_a->slowdown && change)
 					{
+						change = false;
 						Sollwert_RPM_a = p_Profile_a->speed_slow;
 						runtime_a = p_Profile_a->time_fast_init;
 						uint32_t time_a_remaining = p_Profile_a->total_time - runtime_a;
@@ -2714,15 +2762,17 @@ int main(void)
 						lcd_gotoxy(1,4,port_expander_present);
 						lcd_puts("Regelparm. 2");
 						lcd_gotoxy(1,5,port_expander_present);
+						lcd_puts("Info");
+						lcd_gotoxy(1,6,port_expander_present);
 						lcd_puts("Exit");
 						
 						if(position != old_position)
 						{
 							if(position == 255)
-								position = 5;
-							position = position%6;
+								position = 6;
+							position = position%7;
 							old_position = position;
-							for(uint8_t i= 0;i<6;i++)
+							for(uint8_t i= 0;i<7;i++)
 							{
 								lcd_gotoxy(0,i,port_expander_present);
 								if(i == position)
@@ -2737,7 +2787,7 @@ int main(void)
 						}
 						if( get_key_short( 1<<KEY0 ))
 						{
-							if(position != 5)
+							if(position != 6)
 							{
 								menu.menu_point = position | 0x10;
 								screen_clear = true;
@@ -2888,10 +2938,10 @@ int main(void)
 						if(position != old_position)
 						{
 							if(position == 255)
-							position = 3;
-							position = position%4;
+							position = 4;
+							position = position%5;
 							old_position = position;
-							for(uint8_t i= 0;i<4;i++)
+							for(uint8_t i= 0;i<5;i++)
 							{
 								lcd_gotoxy(0,i,port_expander_present);
 								if(i == position)
@@ -2929,10 +2979,10 @@ int main(void)
 						if(position != old_position)
 						{
 							if(position == 255)
-							position = 3;
-							position = position%4;
+							position = 4;
+							position = position%5;
 							old_position = position;
-							for(uint8_t i= 0;i<4;i++)
+							for(uint8_t i= 0;i<5;i++)
 							{
 								lcd_gotoxy(0,i,port_expander_present);
 								if(i == position)
@@ -2962,6 +3012,19 @@ int main(void)
 						}
 						
 						
+					}
+					break;
+					case 0x15:
+					{
+						info_data(Ram,int_buffer,&screen_clear);
+											
+						if(get_key_short( 1<<KEY0 ))
+						{
+							menu.menu_point = 0;
+							screen_clear = true;
+							
+						}
+												
 					}
 					break;
 					default:

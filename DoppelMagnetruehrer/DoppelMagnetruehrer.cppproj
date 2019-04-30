@@ -205,6 +205,12 @@
     <Compile Include="main.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="mem-check.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="mem-check.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="menu.cpp">
       <SubType>compile</SubType>
     </Compile>

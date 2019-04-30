@@ -23,7 +23,8 @@ main.d main.o: .././main.cpp \
  c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\avr\eeprom.h \
  .././lcd.h \
  c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\avr\pgmspace.h \
- .././twi.h .././main.h .././FRAM.h .././CRC.h .././SPI.h .././usb_cdc.h \
+ .././twi.h .././main.h .././FRAM.h .././CRC.h .././SPI.h \
+ .././mem-check.h .././usb_cdc.h \
  c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\avr\wdt.h \
  c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\avr\power.h \
  .././usb_defaults.h \
@@ -87,6 +88,8 @@ c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\
 .././CRC.h:
 
 .././SPI.h:
+
+.././mem-check.h:
 
 .././usb_cdc.h:
 

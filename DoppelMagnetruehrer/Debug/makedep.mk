@@ -12,6 +12,8 @@ lcd.cpp
 
 main.cpp
 
+mem-check.cpp
+
 menu.cpp
 
 SPI.cpp
