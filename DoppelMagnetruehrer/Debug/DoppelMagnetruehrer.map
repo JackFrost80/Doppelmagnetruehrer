@@ -420,7 +420,7 @@ END GROUP
 .rela.plt
  *(.rela.plt)
 
-.text           0x00000000     0x77de
+.text           0x00000000     0x77e6
  *(.vectors)
  .vectors       0x00000000      0x1fc C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/XMEGAA_DFP/1.1.68/gcc/dev/atxmega64a4u/avrxmega4/crtatxmega64a4u.o
                 0x00000000                __vector_default
@@ -787,165 +787,165 @@ END GROUP
                 0x00002d9e       0x9e main.o
                 0x00002d9e                _Z14init_profile_bv
  .text._Z14init_parameterP20regulator_parametershb
-                0x00002e3c       0x56 main.o
+                0x00002e3c       0x5e main.o
                 0x00002e3c                _Z14init_parameterP20regulator_parametershb
  .text._Z13init_profile_P13Speed_profile
-                0x00002e92       0x7a main.o
-                0x00002e92                _Z13init_profile_P13Speed_profile
+                0x00002e9a       0x7a main.o
+                0x00002e9a                _Z13init_profile_P13Speed_profile
  .text._Z19change_profile_menuPhP13Speed_profilePcS_S_Pb
-                0x00002f0c      0x8f8 main.o
-                0x00002f0c                _Z19change_profile_menuPhP13Speed_profilePcS_S_Pb
+                0x00002f14      0x8f8 main.o
+                0x00002f14                _Z19change_profile_menuPhP13Speed_profilePcS_S_Pb
  .text._Z12display_menuPhPcP13Speed_profileS_bPb
-                0x00003804      0x8fa main.o
-                0x00003804                _Z12display_menuPhPcP13Speed_profileS_bPb
- .text.main     0x000040fe     0x2578 main.o
-                0x000040fe                main
+                0x0000380c      0x8fa main.o
+                0x0000380c                _Z12display_menuPhPcP13Speed_profileS_bPb
+ .text.main     0x00004106     0x2578 main.o
+                0x00004106                main
  .text._Z14get_mem_unusedv
-                0x00006676       0x1a mem-check.o
-                0x00006676                _Z14get_mem_unusedv
+                0x0000667e       0x1a mem-check.o
+                0x0000667e                _Z14get_mem_unusedv
  .text._Z9SPIC_Initv
-                0x00006690       0x1e SPI.o
-                0x00006690                _Z9SPIC_Initv
+                0x00006698       0x1e SPI.o
+                0x00006698                _Z9SPIC_Initv
  .text._Z10SPIC_Writeh
-                0x000066ae       0x14 SPI.o
-                0x000066ae                _Z10SPIC_Writeh
+                0x000066b6       0x14 SPI.o
+                0x000066b6                _Z10SPIC_Writeh
  .text._Z24SPIC_Write_16bit_addressj
-                0x000066c2       0x14 SPI.o
-                0x000066c2                _Z24SPIC_Write_16bit_addressj
+                0x000066ca       0x14 SPI.o
+                0x000066ca                _Z24SPIC_Write_16bit_addressj
  .text._Z16SPIC_Write_arrayPhh
-                0x000066d6       0x2c SPI.o
-                0x000066d6                _Z16SPIC_Write_arrayPhh
+                0x000066de       0x2c SPI.o
+                0x000066de                _Z16SPIC_Write_arrayPhh
  .text._Z15SPIC_Read_arrayPhh
-                0x00006702       0x2e SPI.o
-                0x00006702                _Z15SPIC_Read_arrayPhh
+                0x0000670a       0x2e SPI.o
+                0x0000670a                _Z15SPIC_Read_arrayPhh
  .text._Z9twi_writeP10TWI_structPhhjhbbb
-                0x00006730       0xdc twi.o
-                0x00006730                _Z9twi_writeP10TWI_structPhhjhbbb
+                0x00006738       0xdc twi.o
+                0x00006738                _Z9twi_writeP10TWI_structPhhjhbbb
  .text._Z8twi_readP10TWI_structPhhjhb
-                0x0000680c       0xd2 twi.o
-                0x0000680c                _Z8twi_readP10TWI_structPhhjhb
+                0x00006814       0xd2 twi.o
+                0x00006814                _Z8twi_readP10TWI_structPhhjhb
  .text._Z18twi_presense_checkP10TWI_structh
-                0x000068de       0x94 twi.o
-                0x000068de                _Z18twi_presense_checkP10TWI_structh
+                0x000068e6       0x94 twi.o
+                0x000068e6                _Z18twi_presense_checkP10TWI_structh
  .text.usb_handle_ring_note
-                0x00006972       0x60 usb_cdc.o
-                0x00006972                usb_handle_ring_note
+                0x0000697a       0x60 usb_cdc.o
+                0x0000697a                usb_handle_ring_note
  .text.usb_handle_ring_rx
-                0x000069d2       0x34 usb_cdc.o
-                0x000069d2                usb_handle_ring_rx
+                0x000069da       0x34 usb_cdc.o
+                0x000069da                usb_handle_ring_rx
  .text.usb_handle_ring_tx
-                0x00006a06       0x34 usb_cdc.o
-                0x00006a06                usb_handle_ring_tx
+                0x00006a0e       0x34 usb_cdc.o
+                0x00006a0e                usb_handle_ring_tx
  .text.usb_init
-                0x00006a3a       0x4a usb_cdc.o
-                0x00006a3a                usb_init
+                0x00006a42       0x4a usb_cdc.o
+                0x00006a42                usb_init
  .text.EVENT_USB_Device_SetInterface
-                0x00006a84        0x4 usb_cdc.o
-                0x00006a84                EVENT_USB_Device_SetInterface
+                0x00006a8c        0x4 usb_cdc.o
+                0x00006a8c                EVENT_USB_Device_SetInterface
  .text.EVENT_USB_Device_ConfigurationChanged
-                0x00006a88       0x1a usb_cdc.o
-                0x00006a88                EVENT_USB_Device_ConfigurationChanged
+                0x00006a90       0x1a usb_cdc.o
+                0x00006a90                EVENT_USB_Device_ConfigurationChanged
  .text.EVENT_USB_Device_Suspend
-                0x00006aa2        0x2 usb_cdc.o
-                0x00006aa2                EVENT_USB_Device_Suspend
+                0x00006aaa        0x2 usb_cdc.o
+                0x00006aaa                EVENT_USB_Device_Suspend
  .text.EVENT_USB_Device_WakeUp
-                0x00006aa4        0x2 usb_cdc.o
-                0x00006aa4                EVENT_USB_Device_WakeUp
+                0x00006aac        0x2 usb_cdc.o
+                0x00006aac                EVENT_USB_Device_WakeUp
  .text.EVENT_USB_Device_Reset
-                0x00006aa6        0x2 usb_cdc.o
-                0x00006aa6                EVENT_USB_Device_Reset
+                0x00006aae        0x2 usb_cdc.o
+                0x00006aae                EVENT_USB_Device_Reset
  .text.EVENT_USB_Device_ControlOUT
-                0x00006aa8       0x1e usb_cdc.o
-                0x00006aa8                EVENT_USB_Device_ControlOUT
+                0x00006ab0       0x1e usb_cdc.o
+                0x00006ab0                EVENT_USB_Device_ControlOUT
  .text.EVENT_USB_Device_ControlRequest
-                0x00006ac6       0xdc usb_cdc.o
-                0x00006ac6                EVENT_USB_Device_ControlRequest
+                0x00006ace       0xdc usb_cdc.o
+                0x00006ace                EVENT_USB_Device_ControlRequest
  .text.ep_def_init_buffer
-                0x00006ba2       0x88 usb_ep.o
-                0x00006ba2                ep_def_init_buffer
+                0x00006baa       0x88 usb_ep.o
+                0x00006baa                ep_def_init_buffer
  .text.ep_def_init
-                0x00006c2a      0x24a usb_ep.o
-                0x00006c2a                ep_def_init
+                0x00006c32      0x24a usb_ep.o
+                0x00006c32                ep_def_init
  .text.ep_def_in
-                0x00006e74      0x186 usb_ep.o
-                0x00006e74                ep_def_in
+                0x00006e7c      0x186 usb_ep.o
+                0x00006e7c                ep_def_in
  .text.ep_def_out
-                0x00006ffa      0x184 usb_ep.o
-                0x00006ffa                ep_def_out
+                0x00007002      0x184 usb_ep.o
+                0x00007002                ep_def_out
  .text.USB_ResetInterface
-                0x0000717e       0x4a usb_xm.o
-                0x0000717e                USB_ResetInterface
+                0x00007186       0x4a usb_xm.o
+                0x00007186                USB_ResetInterface
  .text.USB_xm_Init
-                0x000071c8       0x38 usb_xm.o
-                0x000071c8                USB_xm_Init
+                0x000071d0       0x38 usb_xm.o
+                0x000071d0                USB_xm_Init
  .text.USB_ep0_send_progmem
-                0x00007200       0x42 usb_xm.o
-                0x00007200                USB_ep0_send_progmem
+                0x00007208       0x42 usb_xm.o
+                0x00007208                USB_ep0_send_progmem
  .text.USB_HandleSetup
-                0x00007242      0x262 usb_xm.o
-                0x00007242                USB_HandleSetup
+                0x0000724a      0x262 usb_xm.o
+                0x0000724a                USB_HandleSetup
  .text.USB_Evt_Task
-                0x000074a4       0x18 usb_xm.o
-                0x000074a4                USB_Evt_Task
+                0x000074ac       0x18 usb_xm.o
+                0x000074ac                USB_Evt_Task
  .text.__vector_125
-                0x000074bc       0xb4 usb_xm.o
-                0x000074bc                __vector_125
+                0x000074c4       0xb4 usb_xm.o
+                0x000074c4                __vector_125
  .text.USB_Task
-                0x00007570       0x4c usb_xm.o
-                0x00007570                USB_Task
+                0x00007578       0x4c usb_xm.o
+                0x00007578                USB_Task
  .text.__vector_126
-                0x000075bc       0x5a usb_xm.o
-                0x000075bc                __vector_126
+                0x000075c4       0x5a usb_xm.o
+                0x000075c4                __vector_126
  .text.libgcc.div
-                0x00007616       0x44 c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/avrxmega4\libgcc.a(_udivmodsi4.o)
-                0x00007616                __udivmodsi4
+                0x0000761e       0x44 c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/avrxmega4\libgcc.a(_udivmodsi4.o)
+                0x0000761e                __udivmodsi4
  .text.libgcc.div
-                0x0000765a       0x2e c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/avrxmega4\libgcc.a(_divmodsi4.o)
-                0x0000765a                __divmodsi4
+                0x00007662       0x2e c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/avrxmega4\libgcc.a(_divmodsi4.o)
+                0x00007662                __divmodsi4
  .text.libgcc.div
-                0x00007688       0x10 c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/avrxmega4\libgcc.a(_negsi2.o)
-                0x00007688                __negsi2
- .text.libgcc   0x00007698       0x12 c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/avrxmega4\libgcc.a(_tablejump2.o)
-                0x00007698                __tablejump2__
+                0x00007690       0x10 c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/avrxmega4\libgcc.a(_negsi2.o)
+                0x00007690                __negsi2
+ .text.libgcc   0x000076a0       0x12 c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/avrxmega4\libgcc.a(_tablejump2.o)
+                0x000076a0                __tablejump2__
  .text.libgcc.mul
-                0x000076aa       0x1e c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/avrxmega4\libgcc.a(_umulhisi3.o)
-                0x000076aa                __umulhisi3
+                0x000076b2       0x1e c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/avrxmega4\libgcc.a(_umulhisi3.o)
+                0x000076b2                __umulhisi3
  .text.libgcc.mul
-                0x000076c8        0xe c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/avrxmega4\libgcc.a(_usmulhisi3.o)
-                0x000076c8                __usmulhisi3
-                0x000076cc                __usmulhisi3_tail
+                0x000076d0        0xe c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/avrxmega4\libgcc.a(_usmulhisi3.o)
+                0x000076d0                __usmulhisi3
+                0x000076d4                __usmulhisi3_tail
  .text.libgcc.mul
-                0x000076d6       0x16 c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/avrxmega4\libgcc.a(_muluhisi3.o)
-                0x000076d6                __muluhisi3
+                0x000076de       0x16 c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/avrxmega4\libgcc.a(_muluhisi3.o)
+                0x000076de                __muluhisi3
  .text.avr-libc
-                0x000076ec       0x12 c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/../../../../avr/lib/avrxmega4\libc.a(memcpy.o)
-                0x000076ec                memcpy
+                0x000076f4       0x12 c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/../../../../avr/lib/avrxmega4\libc.a(memcpy.o)
+                0x000076f4                memcpy
  .text.avr-libc
-                0x000076fe       0x16 c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/../../../../avr/lib/avrxmega4\libc.a(strcat.o)
-                0x000076fe                strcat
+                0x00007706       0x16 c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/../../../../avr/lib/avrxmega4\libc.a(strcat.o)
+                0x00007706                strcat
  .text.avr-libc
-                0x00007714        0xe c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/../../../../avr/lib/avrxmega4\libc.a(strcpy.o)
-                0x00007714                strcpy
+                0x0000771c        0xe c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/../../../../avr/lib/avrxmega4\libc.a(strcpy.o)
+                0x0000771c                strcpy
  .text.avr-libc
-                0x00007722       0x44 c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/../../../../avr/lib/avrxmega4\libc.a(ultoa_ncheck.o)
-                0x00007722                __ultoa_ncheck
-                0x00007724                __ultoa_common
+                0x0000772a       0x44 c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/../../../../avr/lib/avrxmega4\libc.a(ultoa_ncheck.o)
+                0x0000772a                __ultoa_ncheck
+                0x0000772c                __ultoa_common
  .text.avr-libc
-                0x00007766       0x34 c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/../../../../avr/lib/avrxmega4\libc.a(utoa_ncheck.o)
-                0x00007766                __utoa_ncheck
-                0x00007768                __utoa_common
+                0x0000776e       0x34 c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/../../../../avr/lib/avrxmega4\libc.a(utoa_ncheck.o)
+                0x0000776e                __utoa_ncheck
+                0x00007770                __utoa_common
  .text.avr-libc
-                0x0000779a       0x20 c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/../../../../avr/lib/avrxmega4\libc.a(strrev.o)
-                0x0000779a                strrev
+                0x000077a2       0x20 c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/../../../../avr/lib/avrxmega4\libc.a(strrev.o)
+                0x000077a2                strrev
  .text.avr-libc
-                0x000077ba       0x20 C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/XMEGAA_DFP/1.1.68/gcc/dev/atxmega64a4u/avrxmega4\libatxmega64a4u.a(eerd_byte.o)
-                0x000077ba                eeprom_read_byte
-                0x000077c2                eeprom_mapen
-                0x000077da                . = ALIGN (0x2)
+                0x000077c2       0x20 C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/XMEGAA_DFP/1.1.68/gcc/dev/atxmega64a4u/avrxmega4\libatxmega64a4u.a(eerd_byte.o)
+                0x000077c2                eeprom_read_byte
+                0x000077ca                eeprom_mapen
+                0x000077e2                . = ALIGN (0x2)
  *(.fini9)
- .fini9         0x000077da        0x0 c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/avrxmega4\libgcc.a(_exit.o)
-                0x000077da                _exit
-                0x000077da                exit
+ .fini9         0x000077e2        0x0 c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/avrxmega4\libgcc.a(_exit.o)
+                0x000077e2                _exit
+                0x000077e2                exit
  *(.fini9)
  *(.fini8)
  *(.fini8)
@@ -964,11 +964,11 @@ END GROUP
  *(.fini1)
  *(.fini1)
  *(.fini0)
- .fini0         0x000077da        0x4 c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/avrxmega4\libgcc.a(_exit.o)
+ .fini0         0x000077e2        0x4 c:/program files (x86)/atmel/studio/7.0/toolchain/avr8/avr8-gnu-toolchain/bin/../lib/gcc/avr/5.4.0/avrxmega4\libgcc.a(_exit.o)
  *(.fini0)
-                0x000077de                _etext = .
+                0x000077e6                _etext = .
 
-.data           0x00802000      0x312 load address 0x000077de
+.data           0x00802000      0x314 load address 0x000077e6
                 0x00802000                PROVIDE (__data_start, .)
  *(.data)
  .data          0x00802000      0x100 usb_ep.o
@@ -1047,157 +1047,156 @@ END GROUP
  .rodata        0x0080214d        0x6 lcd.o
  *(.rodata*)
  .rodata.str1.1
-                0x00802153      0x1be main.o
-                                0x1c0 (size before relaxing)
+                0x00802153      0x1c1 main.o
+                                0x1c3 (size before relaxing)
  *(.gnu.linkonce.r*)
-                0x00802312                . = ALIGN (0x2)
- *fill*         0x00802311        0x1 
-                0x00802312                _edata = .
-                0x00802312                PROVIDE (__data_end, .)
+                0x00802314                . = ALIGN (0x2)
+                0x00802314                _edata = .
+                0x00802314                PROVIDE (__data_end, .)
 
-.bss            0x00802312      0x398
-                0x00802312                PROVIDE (__bss_start, .)
+.bss            0x00802314      0x398
+                0x00802314                PROVIDE (__bss_start, .)
  *(.bss)
  *(.bss*)
  .bss._ZZ15lcd_putc_invertcE4data
-                0x00802312        0x6 lcd.o
+                0x00802314        0x6 lcd.o
  .bss._ZZ8lcd_putccE4data
-                0x00802318        0x6 lcd.o
+                0x0080231a        0x6 lcd.o
  .bss._ZZ12display_menuPhPcP13Speed_profileS_bPbE3ID_
-                0x0080231e        0x1 main.o
- .bss._ZZ12display_menuPhPcP13Speed_profileS_bPbE6reload
-                0x0080231f        0x1 main.o
- .bss._ZZ11__vector_47E3rpt
                 0x00802320        0x1 main.o
- .bss._ZZ11__vector_47E7counter
+ .bss._ZZ12display_menuPhPcP13Speed_profileS_bPbE6reload
                 0x00802321        0x1 main.o
- .bss.TWI_FRAM_present
+ .bss._ZZ11__vector_47E3rpt
                 0x00802322        0x1 main.o
-                0x00802322                TWI_FRAM_present
- .bss.port_expander_present
+ .bss._ZZ11__vector_47E7counter
                 0x00802323        0x1 main.o
-                0x00802323                port_expander_present
- .bss.ID_mod    0x00802324        0x1 main.o
-                0x00802324                ID_mod
+ .bss.TWI_FRAM_present
+                0x00802324        0x1 main.o
+                0x00802324                TWI_FRAM_present
+ .bss.port_expander_present
+                0x00802325        0x1 main.o
+                0x00802325                port_expander_present
+ .bss.ID_mod    0x00802326        0x1 main.o
+                0x00802326                ID_mod
  .bss.profile_mod
-                0x00802325       0x1f main.o
-                0x00802325                profile_mod
+                0x00802327       0x1f main.o
+                0x00802327                profile_mod
  .bss.Dauerantwort
-                0x00802344        0x1 main.o
-                0x00802344                Dauerantwort
- .bss.Echo      0x00802345        0x1 main.o
-                0x00802345                Echo
+                0x00802346        0x1 main.o
+                0x00802346                Dauerantwort
+ .bss.Echo      0x00802347        0x1 main.o
+                0x00802347                Echo
  .bss.empfangene_Bytes
-                0x00802346        0xc main.o
-                0x00802346                empfangene_Bytes
+                0x00802348        0xc main.o
+                0x00802348                empfangene_Bytes
  .bss.IndexNextValue_a
-                0x00802352        0x1 main.o
-                0x00802352                IndexNextValue_a
+                0x00802354        0x1 main.o
+                0x00802354                IndexNextValue_a
  .bss.RPM_a_raw
-                0x00802353       0x20 main.o
-                0x00802353                RPM_a_raw
+                0x00802355       0x20 main.o
+                0x00802355                RPM_a_raw
  .bss.IndexNextValue_b
-                0x00802373        0x1 main.o
-                0x00802373                IndexNextValue_b
+                0x00802375        0x1 main.o
+                0x00802375                IndexNextValue_b
  .bss.RPM_b_raw
-                0x00802374       0x20 main.o
-                0x00802374                RPM_b_raw
- .bss.end_b     0x00802394        0x1 main.o
-                0x00802394                end_b
- .bss.end_a     0x00802395        0x1 main.o
-                0x00802395                end_a
+                0x00802376       0x20 main.o
+                0x00802376                RPM_b_raw
+ .bss.end_b     0x00802396        0x1 main.o
+                0x00802396                end_b
+ .bss.end_a     0x00802397        0x1 main.o
+                0x00802397                end_a
  .bss.runtime_b
-                0x00802396        0x4 main.o
-                0x00802396                runtime_b
+                0x00802398        0x4 main.o
+                0x00802398                runtime_b
  .bss.runtime_a
-                0x0080239a        0x4 main.o
-                0x0080239a                runtime_a
- .bss.menu      0x0080239e        0x2 main.o
-                0x0080239e                menu
+                0x0080239c        0x4 main.o
+                0x0080239c                runtime_a
+ .bss.menu      0x008023a0        0x2 main.o
+                0x008023a0                menu
  .bss.screen_clear
-                0x008023a0        0x1 main.o
-                0x008023a0                screen_clear
+                0x008023a2        0x1 main.o
+                0x008023a2                screen_clear
  .bss.show_menu
-                0x008023a1        0x1 main.o
-                0x008023a1                show_menu
+                0x008023a3        0x1 main.o
+                0x008023a3                show_menu
  .bss.parameter_b
-                0x008023a2       0x14 main.o
-                0x008023a2                parameter_b
+                0x008023a4       0x14 main.o
+                0x008023a4                parameter_b
  .bss.parameter_a
-                0x008023b6       0x14 main.o
-                0x008023b6                parameter_a
+                0x008023b8       0x14 main.o
+                0x008023b8                parameter_a
  .bss.Profile_b
-                0x008023ca       0x1f main.o
-                0x008023ca                Profile_b
+                0x008023cc       0x1f main.o
+                0x008023cc                Profile_b
  .bss.Profile_a
-                0x008023e9       0x1f main.o
-                0x008023e9                Profile_a
- .bss.key_rpt   0x00802408        0x1 main.o
-                0x00802408                key_rpt
+                0x008023eb       0x1f main.o
+                0x008023eb                Profile_a
+ .bss.key_rpt   0x0080240a        0x1 main.o
+                0x0080240a                key_rpt
  .bss.key_press
-                0x00802409        0x1 main.o
-                0x00802409                key_press
+                0x0080240b        0x1 main.o
+                0x0080240b                key_press
  .bss.key_state
-                0x0080240a        0x1 main.o
-                0x0080240a                key_state
- .bss.hand_b    0x0080240b        0x1 main.o
-                0x0080240b                hand_b
- .bss.hand_a    0x0080240c        0x1 main.o
-                0x0080240c                hand_a
+                0x0080240c        0x1 main.o
+                0x0080240c                key_state
+ .bss.hand_b    0x0080240d        0x1 main.o
+                0x0080240d                hand_b
+ .bss.hand_a    0x0080240e        0x1 main.o
+                0x0080240e                hand_a
  .bss.running_b
-                0x0080240d        0x1 main.o
-                0x0080240d                running_b
- .bss.running_a
-                0x0080240e        0x1 main.o
-                0x0080240e                running_a
- .bss.recalc_time
                 0x0080240f        0x1 main.o
-                0x0080240f                recalc_time
- .bss._ZL4last  0x00802410        0x1 main.o
- .bss.enc_delta
+                0x0080240f                running_b
+ .bss.running_a
+                0x00802410        0x1 main.o
+                0x00802410                running_a
+ .bss.recalc_time
                 0x00802411        0x1 main.o
-                0x00802411                enc_delta
+                0x00802411                recalc_time
+ .bss._ZL4last  0x00802412        0x1 main.o
+ .bss.enc_delta
+                0x00802413        0x1 main.o
+                0x00802413                enc_delta
  .bss.calc_regulator
-                0x00802412        0x1 main.o
-                0x00802412                calc_regulator
- .bss.RPM_b     0x00802413        0x4 main.o
-                0x00802413                RPM_b
- .bss.RPM_a     0x00802417        0x4 main.o
-                0x00802417                RPM_a
- .bss.Blink     0x0080241b        0x1 main.o
-                0x0080241b                Blink
+                0x00802414        0x1 main.o
+                0x00802414                calc_regulator
+ .bss.RPM_b     0x00802415        0x4 main.o
+                0x00802415                RPM_b
+ .bss.RPM_a     0x00802419        0x4 main.o
+                0x00802419                RPM_a
+ .bss.Blink     0x0080241d        0x1 main.o
+                0x0080241d                Blink
  .bss.Unixtimestamp
-                0x0080241c        0x4 main.o
-                0x0080241c                Unixtimestamp
+                0x0080241e        0x4 main.o
+                0x0080241e                Unixtimestamp
  .bss.usb_notify_state
-                0x00802420        0x1 usb_cdc.o
-                0x00802420                usb_notify_state
+                0x00802422        0x1 usb_cdc.o
+                0x00802422                usb_notify_state
  .bss.usb_stored_control
-                0x00802421        0x1 usb_cdc.o
-                0x00802421                usb_stored_control
+                0x00802423        0x1 usb_cdc.o
+                0x00802423                usb_stored_control
  *(COMMON)
- COMMON         0x00802422      0x206 usb_cdc.o
-                0x00802422                ep_in_buf
-                0x008024a2                ep_out_buf
-                0x00802522                cdc_rxb
-                0x00802565                ep_note_buf
-                0x008025e5                cdc_txb
- COMMON         0x00802628       0x80 usb_ep.o
-                0x00802628                ep0_buf_in
-                0x00802668                ep0_buf_out
- COMMON         0x008026a8        0x2 usb_xm.o
-                0x008026a8                USB_DeviceState
-                0x008026a9                USB_Device_ConfigurationNumber
-                0x008026aa                PROVIDE (__bss_end, .)
-                0x000077de                __data_load_start = LOADADDR (.data)
-                0x00007af0                __data_load_end = (__data_load_start + SIZEOF (.data))
+ COMMON         0x00802424      0x206 usb_cdc.o
+                0x00802424                ep_in_buf
+                0x008024a4                ep_out_buf
+                0x00802524                cdc_rxb
+                0x00802567                ep_note_buf
+                0x008025e7                cdc_txb
+ COMMON         0x0080262a       0x80 usb_ep.o
+                0x0080262a                ep0_buf_in
+                0x0080266a                ep0_buf_out
+ COMMON         0x008026aa        0x2 usb_xm.o
+                0x008026aa                USB_DeviceState
+                0x008026ab                USB_Device_ConfigurationNumber
+                0x008026ac                PROVIDE (__bss_end, .)
+                0x000077e6                __data_load_start = LOADADDR (.data)
+                0x00007afa                __data_load_end = (__data_load_start + SIZEOF (.data))
 
-.noinit         0x008026aa        0x0
+.noinit         0x008026ac        0x0
                 [!provide]                PROVIDE (__noinit_start, .)
  *(.noinit*)
                 [!provide]                PROVIDE (__noinit_end, .)
-                0x008026aa                _end = .
-                0x008026aa                PROVIDE (__heap_start, .)
+                0x008026ac                _end = .
+                0x008026ac                PROVIDE (__heap_start, .)
 
 .eeprom         0x00810000      0x177
  *(.eeprom*)
@@ -1306,21 +1305,21 @@ END GROUP
 .debug_pubnames
  *(.debug_pubnames)
 
-.debug_info     0x00000000    0x12007
+.debug_info     0x00000000    0x12006
  *(.debug_info .gnu.linkonce.wi.*)
  .debug_info    0x00000000     0x284f C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/XMEGAA_DFP/1.1.68/gcc/dev/atxmega64a4u/avrxmega4/crtatxmega64a4u.o
  .debug_info    0x0000284f      0x1e3 CRC.o
  .debug_info    0x00002a32      0x749 Descriptors.o
  .debug_info    0x0000317b      0xa45 FRAM.o
  .debug_info    0x00003bc0     0x1bc5 lcd.o
- .debug_info    0x00005785     0x91a6 main.o
- .debug_info    0x0000e92b       0xd1 mem-check.o
- .debug_info    0x0000e9fc      0x44a SPI.o
- .debug_info    0x0000ee46      0x728 twi.o
- .debug_info    0x0000f56e      0xe1d usb_cdc.o
- .debug_info    0x0001038b      0x6ac usb_ep.o
- .debug_info    0x00010a37     0x151d usb_xm.o
- .debug_info    0x00011f54       0xb3 C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/XMEGAA_DFP/1.1.68/gcc/dev/atxmega64a4u/avrxmega4\libatxmega64a4u.a(eerd_byte.o)
+ .debug_info    0x00005785     0x91a5 main.o
+ .debug_info    0x0000e92a       0xd1 mem-check.o
+ .debug_info    0x0000e9fb      0x44a SPI.o
+ .debug_info    0x0000ee45      0x728 twi.o
+ .debug_info    0x0000f56d      0xe1d usb_cdc.o
+ .debug_info    0x0001038a      0x6ac usb_ep.o
+ .debug_info    0x00010a36     0x151d usb_xm.o
+ .debug_info    0x00011f53       0xb3 C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/XMEGAA_DFP/1.1.68/gcc/dev/atxmega64a4u/avrxmega4\libatxmega64a4u.a(eerd_byte.o)
 
 .debug_abbrev   0x00000000     0x3d24
  *(.debug_abbrev)
@@ -1338,21 +1337,21 @@ END GROUP
  .debug_abbrev  0x00003966      0x3aa usb_xm.o
  .debug_abbrev  0x00003d10       0x14 C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/XMEGAA_DFP/1.1.68/gcc/dev/atxmega64a4u/avrxmega4\libatxmega64a4u.a(eerd_byte.o)
 
-.debug_line     0x00000000     0x592a
+.debug_line     0x00000000     0x5930
  *(.debug_line .debug_line.* .debug_line_end)
  .debug_line    0x00000000      0x391 C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/XMEGAA_DFP/1.1.68/gcc/dev/atxmega64a4u/avrxmega4/crtatxmega64a4u.o
  .debug_line    0x00000391      0x172 CRC.o
  .debug_line    0x00000503      0x1ba Descriptors.o
  .debug_line    0x000006bd      0x2dd FRAM.o
  .debug_line    0x0000099a      0x7f4 lcd.o
- .debug_line    0x0000118e     0x2f85 main.o
- .debug_line    0x00004113       0x74 mem-check.o
- .debug_line    0x00004187      0x1f9 SPI.o
- .debug_line    0x00004380      0x41b twi.o
- .debug_line    0x0000479b      0x3be usb_cdc.o
- .debug_line    0x00004b59      0x599 usb_ep.o
- .debug_line    0x000050f2      0x78f usb_xm.o
- .debug_line    0x00005881       0xa9 C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/XMEGAA_DFP/1.1.68/gcc/dev/atxmega64a4u/avrxmega4\libatxmega64a4u.a(eerd_byte.o)
+ .debug_line    0x0000118e     0x2f8b main.o
+ .debug_line    0x00004119       0x74 mem-check.o
+ .debug_line    0x0000418d      0x1f9 SPI.o
+ .debug_line    0x00004386      0x41b twi.o
+ .debug_line    0x000047a1      0x3be usb_cdc.o
+ .debug_line    0x00004b5f      0x599 usb_ep.o
+ .debug_line    0x000050f8      0x78f usb_xm.o
+ .debug_line    0x00005887       0xa9 C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/XMEGAA_DFP/1.1.68/gcc/dev/atxmega64a4u/avrxmega4\libatxmega64a4u.a(eerd_byte.o)
 
 .debug_frame    0x00000000      0xed8
  *(.debug_frame)

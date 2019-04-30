@@ -443,7 +443,7 @@ void change_parameter_settings(p_regulator_parameters_t paramters_,bool seite, u
 		else
 			lcd_puts("Regelparamter rechts");
 		lcd_gotoxy(1,1,port_expander_present);
-		lcd_puts("Vcc 120 mm:");
+		lcd_puts("Vcc 120 mm: ");
 		if(paramters_->I_voltage_0/1000 <1000)
 		lcd_puts(" ");
 		if(paramters_->I_voltage_0/100 <100)
@@ -453,7 +453,7 @@ void change_parameter_settings(p_regulator_parameters_t paramters_,bool seite, u
 		utoa(paramters_->I_voltage_0/100,int_buffer,10);
 		lcd_puts(int_buffer);
 		lcd_gotoxy(1,2,port_expander_present);
-		lcd_puts("Speed 120 mm:");
+		lcd_puts("Speed 120 mm: ");
 		if(paramters_->I_speed_0/1000 <1000)
 		lcd_puts(" ");
 		if(paramters_->I_speed_0/1000 <100)
@@ -464,7 +464,7 @@ void change_parameter_settings(p_regulator_parameters_t paramters_,bool seite, u
 		lcd_puts(int_buffer);
 		
 		lcd_gotoxy(1,3,port_expander_present);
-		lcd_puts("Vcc 140 mm:");
+		lcd_puts("Vcc 140 mm: ");
 		if(paramters_->I_voltage_1/1000 <1000)
 		lcd_puts(" ");
 		if(paramters_->I_voltage_1/100 <100)
@@ -491,7 +491,7 @@ void change_parameter_settings(p_regulator_parameters_t paramters_,bool seite, u
 				case 0x10:
 				{
 					paramters_->I_voltage_0 += encode_read2()*100UL;
-					lcd_gotoxy(16,1,port_expander_present);
+					lcd_gotoxy(12,1,port_expander_present);
 					if(paramters_->I_voltage_0/1000 <1000)
 					lcd_puts(" ");
 					if(paramters_->I_voltage_0/100 <100)
@@ -514,7 +514,7 @@ void change_parameter_settings(p_regulator_parameters_t paramters_,bool seite, u
 				case 0x20:
 				{
 					paramters_->I_speed_0 += encode_read2()*100UL;
-					lcd_gotoxy(62,2,port_expander_present);
+					lcd_gotoxy(14,2,port_expander_present);
 					if(paramters_->I_speed_0/1000 <1000)
 					lcd_puts(" ");
 					if(paramters_->I_speed_0/100 <100)
@@ -560,7 +560,7 @@ void change_parameter_settings(p_regulator_parameters_t paramters_,bool seite, u
 				case 0x40:
 				{
 					paramters_->I_speed_1 += encode_read2()*100UL;
-					lcd_gotoxy(12,4,port_expander_present);
+					lcd_gotoxy(14,4,port_expander_present);
 					if(paramters_->I_speed_1/1000 <1000)
 					lcd_puts(" ");
 					if(paramters_->I_speed_1/100 <100)
@@ -1701,7 +1701,7 @@ void init_parameter(p_regulator_parameters_t paramter, uint8_t ID,bool TWI)
 	paramter->I_speed_0 = 100000;
 	paramter->I_speed_1 = 100000;
 	paramter->I_voltage_0 = 100000;
-	paramter->I_voltage_0 = 100000;
+	paramter->I_voltage_1 = 100000;
 	paramter->CRC_value = calculate_crc32_checksum((unsigned char *)paramter,sizeof(regulator_parameters_t)-4);
 	write_param_profile(paramter,ID,TWI,offset_settings_regulator);
 	
