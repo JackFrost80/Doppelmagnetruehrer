@@ -47,6 +47,7 @@ typedef struct Speed_profile {
 	uint8_t ID;
 	uint8_t status;
 	uint8_t type;
+	uint8_t erlenmayer_size;
 	bool switchoff;
 	bool slowdown;
 	bool speedup;

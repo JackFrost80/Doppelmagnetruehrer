@@ -66,6 +66,7 @@ volatile uint16_t Sollwert_RPM_a = 600;
 volatile uint16_t Sollwert_RPM_b = 600;
 volatile uint32_t Unixtimestamp = 0;
 volatile uint8_t Blink = 0;
+volatile uint8_t display_counter = 0;
 uint32_t I_Anteil_a = 100000;
 uint32_t I_Anteil_speed_a = 100000;
 uint32_t I_Anteil_b = 100000;
@@ -94,13 +95,18 @@ regulator_parameters_t parameter_a;
 p_regulator_parameters_t p_parameter_a = &parameter_a;;
 regulator_parameters_t parameter_b;
 p_regulator_parameters_t p_parameter_b = &parameter_b;;
-Speed_profile_t EEPROM_profile[12] EEMEM;
 uint8_t profile_ID_a EEMEM = 0;
 uint8_t profile_ID_b EEMEM = 0;
 uint8_t type_of_encoder_EE EEMEM =  4;
+uint8_t show_debug_eeprom EEMEM = 0;
+uint8_t show_debug = 0;
+uint8_t show_profile_eeprom EEMEM = 1;
+uint8_t show_profile = 1;
 uint8_t type_of_encoder = 4;
 bool show_menu = false;
 bool screen_clear = false;
+volatile bool first_line_profile = true;
+volatile bool update_display = true;
 Menu_t menu = {0,0};
 uint32_t runtime_a = 0;
 uint32_t runtime_b = 0;
@@ -128,12 +134,26 @@ bool TWI_FRAM_present = false;
 
 ISR(RTC_OVF_vect)
 {
+	static uint8_t change_couter_frist_line = 0;
 	Blink++;
 	if(Blink % 8 == 0)
 	{
+		if(display_counter<254)
+			display_counter++;
+		//change_couter_frist_line++;
+		if(Blink % 5 == 0)
+		{
+			//change_couter_frist_line = 0;
+			if(first_line_profile)
+				first_line_profile = false;
+			else
+				first_line_profile = true; 
+			//update_display = true;
+		}
 		Unixtimestamp++;
 		recalc_time =  true;
 	}
+	
 	
 	calc_regulator = true;
 	
@@ -320,11 +340,27 @@ void regulator()
 		//if((Stellgrad <= 0x3E8) && (Stellgrad > 0x7D))
 		TCD0.CCA = Stellgrad;
 		
-		
 		if(Stellgrad >= 0x300)
-		Sollwert_a -= 0x02;
+		{
+			if(error < -100)
+			Sollwert_a -= 0x10;
+			else
+			Sollwert_a -= 0x02;
+			
+		}
+		
 		if(Stellgrad < 0xFA)
-		Sollwert_a += 0x02;
+		{
+			if(error > 100)
+			Sollwert_a += 0x10;
+			else
+			Sollwert_a += 0x02;
+		}
+		//
+		//if(Stellgrad >= 0x300)
+		//Sollwert_a -= 0x02;
+		//if(Stellgrad < 0xFA)
+		//Sollwert_a += 0x02;
 		
 		if(Sollwert_a > 0x1000)
 		Sollwert_a = 0x1000;
@@ -366,9 +402,22 @@ void regulator()
 		
 		
 		if(Stellgrad >= 0x300)
-		Sollwert_b -= 0x02;
+		{
+			if(error < -100)
+				Sollwert_b -= 0x10;
+			else
+				Sollwert_b -= 0x02;
+			
+		}
+		
 		if(Stellgrad < 0xFA)
-		Sollwert_b += 0x02;
+		{
+			if(error > 100)
+				Sollwert_b += 0x10;
+			else
+				Sollwert_b += 0x02;
+		}
+		
 		
 		if(Sollwert_b > 0x1000)
 		Sollwert_b = 0x1000;
@@ -396,6 +445,112 @@ void regulator()
 	
 	
 }
+
+void size_string(uint8_t type)
+{
+	switch(type)
+	{
+		case 0:
+		{
+			lcd_puts("  50 ml");
+		}
+		break;
+		case 1:
+		{
+			lcd_puts(" 100 ml");
+		}
+		break;
+		case 2:
+		{
+			lcd_puts(" 250 ml");
+		}
+		break;
+		case 3:
+		{
+			lcd_puts(" 500 ml");
+		}
+		break;
+		case 4:
+		{
+			lcd_puts("1000 ml");
+		}
+		break;
+		case 5:
+		{
+			lcd_puts("2000 ml");
+		}
+		break;
+		case 6:
+		{
+			lcd_puts("3000 ml");
+		}
+		break;
+		case 7:
+		{
+			lcd_puts("5000 ml");
+		}
+		break;
+		default:
+		{
+			lcd_puts("xxxx ml");
+		}
+		break;
+	}
+	
+}
+void size_string_inverted(uint8_t type)
+{
+	switch(type)
+	{
+		case 0:
+		{
+			lcd_puts_invert("  50 ml");
+		}
+		break;
+		case 1:
+		{
+			lcd_puts_invert(" 100 ml");
+		}
+		break;
+		case 2:
+		{
+			lcd_puts_invert(" 250 ml");
+		}
+		break;
+		case 3:
+		{
+			lcd_puts_invert(" 500 ml");
+		}
+		break;
+		case 4:
+		{
+			lcd_puts_invert("1000 ml");
+		}
+		break;
+		case 5:
+		{
+			lcd_puts_invert("2000 ml");
+		}
+		break;
+		case 6:
+		{
+			lcd_puts_invert("3000 ml");
+		}
+		break;
+		case 7:
+		{
+			lcd_puts_invert("5000 ml");
+		}
+		break;
+		default:
+		{
+			lcd_puts_invert("xxxx ml");
+		}
+		break;
+	}
+	
+}
+
 
 void Blink_LED(PORT_t* port,uint8_t Pin_blink ,uint8_t Takt, uint8_t Frequenz)
 {
@@ -616,7 +771,8 @@ void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *i
 		*screen_clear_ = false;
 		lcd_clrscr(port_expander_present);
 		lcd_gotoxy(1,0,port_expander_present);
-		lcd_puts("Profil bearbeiten");
+		lcd_puts("Bearbeiten: ");
+		size_string(p_profile_->erlenmayer_size);
 		lcd_gotoxy(1,1,port_expander_present);
 		lcd_puts("ID :");
 		if(*ID_ <100)
@@ -657,6 +813,26 @@ void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *i
 	{
 		switch(menu.sub_menu)
 		{
+			case 0x01:
+			{
+				
+				p_profile_->erlenmayer_size += encode_read2();
+				p_profile_->erlenmayer_size %= 8;
+				lcd_gotoxy(1,0,port_expander_present);
+				lcd_puts("Bearbeiten: ");
+				size_string_inverted(p_profile_->erlenmayer_size);
+				if( get_key_short( 1<<KEY0 ))
+				{
+					lcd_gotoxy(1,0,port_expander_present);
+					lcd_puts("Bearbeiten: ");
+					size_string(p_profile_->erlenmayer_size);
+					*position_ = 2;
+					*old_position_ = 1;
+					menu.sub_menu = 0;
+				}
+				
+			}
+			break;
 			case 0x10:
 			{
 				*ID_ += encode_read2();
@@ -945,6 +1121,7 @@ void change_profile_menu(uint8_t *position_,p_Speed_profile_t p_profile_,char *i
 	}
 }
 
+
 void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profile_,uint8_t *old_position_,bool left_,bool *screen_clear_)
 {
 
@@ -966,9 +1143,10 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 		lcd_clrscr(port_expander_present);
 		lcd_gotoxy(1,0,port_expander_present);
 		if(left_)
-			lcd_puts("Profil links ");
+			lcd_puts("Links: ");
 		else
-			lcd_puts("Profil rechts");
+			lcd_puts("Rechts: ");
+		size_string(p_profile_->erlenmayer_size);
 		lcd_gotoxy(1,1,port_expander_present);
 		lcd_puts("ID :");
 		if(p_profile_->ID <100)
@@ -1004,11 +1182,38 @@ void display_menu(uint8_t *position_,char *int_buffer,p_Speed_profile_t p_profil
 		lcd_gotoxy(1,7,port_expander_present);
 		lcd_puts("t langsam ");
 		display_time_menu(&p_profile_->time_slow,false,0,0);
+		
 	}
 	if(menu.sub_menu >0)
 	{
 		switch(menu.sub_menu)
 		{
+			case 0x01:
+			{
+				
+				p_profile_->erlenmayer_size += encode_read2();
+				p_profile_->erlenmayer_size %= 8;
+				lcd_gotoxy(1,0,port_expander_present);
+				if(left_)
+				lcd_puts("Links: ");
+				else
+				lcd_puts("Rechts: ");
+				size_string_inverted(p_profile_->erlenmayer_size);
+				if( get_key_short( 1<<KEY0 ))
+				{
+					lcd_gotoxy(1,0,port_expander_present);
+					if(left_)
+					lcd_puts("Links: ");
+					else
+					lcd_puts("Rechts: ");
+					size_string(p_profile_->erlenmayer_size);
+					*position_ = 2;
+					*old_position_ = 1;
+					menu.sub_menu = 0;
+				}
+				
+			}
+			break;
 			case 0x10:
 			{
 				ID_ += encode_read2();
@@ -1671,6 +1876,7 @@ void init_profile_a()
 	p_Profile_a->slowdown_switch = false;
 	p_Profile_a->switchoff = false;
 	p_Profile_a->speedup = false;
+	p_Profile_a->erlenmayer_size = 0;
 	p_Profile_a->CRC_value = calculate_crc32_checksum((unsigned char *)p_Profile_a,sizeof(Speed_profile_t)-4);
 	write_profile(p_Profile_a,0,TWI_FRAM_present,offset_profile_a);
 	
@@ -1691,6 +1897,7 @@ void init_profile_b()
 	p_Profile_b->switchoff = false;
 	p_Profile_b->slowdown_switch = false;
 	p_Profile_b->speedup = false;
+	p_Profile_b->erlenmayer_size = 0;
 	p_Profile_b->CRC_value = calculate_crc32_checksum((unsigned char *)p_Profile_b,sizeof(Speed_profile_t)-4);
 	write_profile(p_Profile_b,0,TWI_FRAM_present,offset_profile_b);
 	
@@ -1721,6 +1928,7 @@ void init_profile_mod()
 	p_profile_mod->switchoff = false;
 	p_profile_mod->slowdown_switch = false;
 	p_profile_mod->speedup = false;
+	p_profile_mod->erlenmayer_size = 0;
 	p_profile_mod->CRC_value = calculate_crc32_checksum((unsigned char *)p_profile_mod,sizeof(Speed_profile_t)-4);
 	write_profile(p_Profile_b,ID_mod,TWI_FRAM_present,offset_profiles);
 	
@@ -1740,6 +1948,7 @@ void init_profile_(p_Speed_profile_t p_profile_)
 	p_profile_->switchoff = false;
 	p_profile_->slowdown_switch = false;
 	p_profile_->speedup = false;
+	p_profile_->erlenmayer_size = 0;
 	p_profile_->CRC_value = calculate_crc32_checksum((unsigned char *)p_profile_,sizeof(Speed_profile_t)-4);
 	//write_profile(p_Profile_b,ID_mod+4,TWI_FRAM_present);
 	
@@ -1747,13 +1956,19 @@ void init_profile_(p_Speed_profile_t p_profile_)
 
 int main(void)
 {  
+	//PORTC.DIRSET = PIN0_bm | PIN1_bm;
+	PORTC.OUTSET = PIN0_bm | PIN1_bm;
+	
+	PORTA.DIRSET = PIN5_bm	| PIN6_bm | PIN7_bm;
+	PORTB.DIRSET = PIN0_bm;
 	uint16_t Ram = 0;
 	uint16_t test = 0;
 	uint8_t position = 0;
-	bool update_display = true;
+	
 	bool high_speed_a = true;
 	bool high_speed_b = false;
-	type_of_encoder = eeprom_read_byte(&type_of_encoder_EE);
+	PORTA.OUTSET = PIN5_bm;
+	
 	uint8_t status_a = 0;
 	uint8_t status_b = 0;
 	bool change_a = false;
@@ -1764,9 +1979,13 @@ int main(void)
 	uint8_t counter = 0;
 	uint32_t avg_voltage_a = 0;
 	uint32_t avg_voltage_b = 0;
+	PORTA.OUTSET = PIN6_bm;
 	RTC_Init();
+	PORTA.OUTSET = PIN7_bm;
 	usb_init();
+	PORTB.OUTSET = PIN0_bm;
 	Config32MHzClock();
+	PORTA.OUTCLR = PIN5_bm;
 	//Clock_Init();
 	Timer_init();
 	
@@ -1774,7 +1993,7 @@ int main(void)
 	ADCA_init();
 	
 	twi_init(&TWIE);
-	
+	PORTA.OUTCLR = PIN7_bm;
 	encode_init();
 	// Variablen initieren
 	cdc_rxb.flag=1;   // Anfangszustände für Schreib-/Lesepuffer
@@ -1800,10 +2019,12 @@ int main(void)
 	PORTA.OUTSET = PIN6_bm;
 	PORTB.OUTSET = PIN0_bm;
 	sei();
-	TCC0.CCA = 0xA5;
-	TCC0.CCB = 0xA5;
+	TCC0.CCA = 0x0;
+	TCC0.CCB = 0x0;
 	TCD0.CCA = 0x0;
 	TCD0.CCB = 0x0;
+	Sollwert_a = 0;
+	Sollwert_b = 0;
 	//PORTC.OUTCLR = PIN2_bm;
 	//_delay_ms(1);
 	//PORTC.OUTSET = PIN2_bm;
@@ -1863,7 +2084,9 @@ int main(void)
 	char int_buffer[10];
     bool size_a = false;
 	bool size_b = false;
-	
+	type_of_encoder = eeprom_read_byte(&type_of_encoder_EE);
+	show_debug = eeprom_read_byte(&show_debug_eeprom);
+	show_profile = eeprom_read_byte(&show_profile_eeprom);
     while (1) 
     {
 		Ram = get_mem_unused()/41;
@@ -1935,45 +2158,56 @@ int main(void)
 		// Switch on/off and Reset side a
 		if(!change_a)
 		{
-			if(status_a == 1)
+			if(status_a == 1)  // Auto on
 			{
+				
 				running_a = true;
 				hand_a = false;
 			}
-			if(status_a == 0)
+			if(status_a == 0)  // Off
 			{
 				running_a = false;
 				hand_a = false;
 			}
-			if(status_a == 2)
-			{
-				running_a = false;
-				hand_a = false;
-			}
-			if(status_a == 3)
+			if(status_a == 2)  // Hand on
 			{
 				running_a = true;
 				hand_a = true;
 			}
+			if(status_a == 3)  // Restart Program
+			{
+				
+				next_change_a = Unixtimestamp + p_Profile_a->time_fast_init;
+				end_time_a = Unixtimestamp + p_Profile_a->total_time;
+				Sollwert_RPM_a = p_Profile_a->speed_fast;
+				status_a = 1;
+				end_a = false;
+				p_Profile_a->slowdown = true;
+				p_Profile_a->speedup = false;
+				p_Profile_a->switchoff = false;
+				runtime_a = 0;
+			}
 			if(status_a == 4)
-				{
-					next_change_a = Unixtimestamp + p_Profile_a->time_fast_init;
-					end_time_a = Unixtimestamp + p_Profile_a->total_time;
-					Sollwert_RPM_a = p_Profile_a->speed_fast;
-					status_a = 0;
-					end_a = false;
-					p_Profile_a->slowdown = true;
-					p_Profile_a->speedup = false;
-					p_Profile_a->switchoff = false;
-					runtime_a = 0;
+			{
+				next_change_a = Unixtimestamp + p_Profile_a->time_fast_init;
+				end_time_a = Unixtimestamp + p_Profile_a->total_time;
+				Sollwert_RPM_a = p_Profile_a->speed_fast;
+				status_a = 0;
+				end_a = false;
+				p_Profile_a->slowdown = true;
+				p_Profile_a->speedup = false;
+				p_Profile_a->switchoff = false;
+				runtime_a = 0;
 					
-				}
+			}
+			change_a = false;
 		}
 		
 		if(!change_b)
 		{
 			if(status_b == 1)
 			{
+				
 				running_b = true;
 				hand_b = false;
 			}
@@ -1984,13 +2218,21 @@ int main(void)
 			}
 			if(status_b == 2)
 			{
-				running_b = false;
-				hand_b = false;
+				running_b = true;
+				hand_b = true;
 			}
 			if(status_b == 3)
 			{
-				running_b = true;
-				hand_b = true;
+				
+				next_change_b = Unixtimestamp + p_Profile_b->time_fast_init;
+				end_time_b = Unixtimestamp + p_Profile_b->total_time;
+				Sollwert_RPM_b = p_Profile_b->speed_fast;
+				status_b = 1;
+				end_b = false;
+				p_Profile_b->slowdown = true;
+				p_Profile_b->speedup = false;
+				p_Profile_b->switchoff = false;
+				runtime_b = 0;
 			}
 			
 			if(status_b == 4)
@@ -2006,6 +2248,7 @@ int main(void)
 				runtime_b = 0;
 				
 			}
+		
 		}
 		
 			
@@ -2013,7 +2256,21 @@ int main(void)
 		if(!show_menu)
 		{
 			if(!change_a && !change_b && !change_speed_a && !change_speed_b)
+			if(display_counter <= 180)
+			{
 				position_main += encode_read2();
+				cli();
+				display_counter = 0;
+				sei();
+				
+			}
+				
+			else
+			{
+				encode_read2();
+				display_counter = 0;
+				
+			}
 			if(change_a)
 			{
 				status_a += encode_read2();
@@ -2265,6 +2522,7 @@ int main(void)
 				}
 				if(p_Profile_b->type == type_switch)
 				{
+					bool change = true;
 					if(p_Profile_b->switchoff)
 					{
 						end_b = true;
@@ -2280,10 +2538,11 @@ int main(void)
 						
 						
 					}
-					if(p_Profile_b->speedup)
+					if(p_Profile_b->speedup && change)
 					{
+						change = false;
 						runtime_b += p_Profile_b->time_slow;
-						Sollwert_RPM_b = p_Profile_b->speed_time;
+						Sollwert_RPM_b = p_Profile_b->speed_fast;
 						p_Profile_b->speedup = false;
 						p_Profile_b->slowdown_switch = true;
 						p_Profile_b->slowdown = false;
@@ -2295,8 +2554,9 @@ int main(void)
 						
 						
 					}
-					if(p_Profile_b->slowdown_switch)
+					if(p_Profile_b->slowdown_switch  && change)
 					{
+						change = false;
 						Sollwert_RPM_b = p_Profile_b->speed_slow;
 						runtime_b += p_Profile_b->time_slow;
 						uint32_t time_b_remaining = p_Profile_b->total_time - runtime_b;
@@ -2320,8 +2580,9 @@ int main(void)
 						
 					}
 					
-					if(p_Profile_b->slowdown)
+					if(p_Profile_b->slowdown && change)
 					{
+						change = false;
 						Sollwert_RPM_b = p_Profile_b->speed_slow;
 						runtime_b = p_Profile_b->time_fast_init;
 						uint32_t time_b_remaining = p_Profile_b->total_time - runtime_b;
@@ -2370,6 +2631,7 @@ int main(void)
 		//show live values when not in settings
 		if(!show_menu)
 		{
+			bool show_time = true;
 			if(recalc_time)
 			{
 				recalc_time = false;
@@ -2384,353 +2646,684 @@ int main(void)
 					end_time_b++;
 				}
 				
-				display_time(&Unixtimestamp,&next_change_a,left,5,(running_a  && !hand_a),end_a);
-				display_time(&Unixtimestamp,&end_time_a,left,6,(running_a  && !hand_a),end_a);
-				display_time(&Unixtimestamp,&next_change_b,right,5,(running_b  && !hand_b),end_b);
-				display_time(&Unixtimestamp,&end_time_b,right,6,(running_b  && !hand_b),end_b);
+				if(display_counter <= 180);
+				 //show_time = false;
+				 
+				display_time(&Unixtimestamp,&next_change_a,left,5,(running_a  && !hand_a && show_time),end_a);
+				display_time(&Unixtimestamp,&end_time_a,left,6,(running_a  && !hand_a && show_time),end_a);
+				display_time(&Unixtimestamp,&next_change_b,right,5,(running_b  && !hand_b && show_time),end_b);
+				display_time(&Unixtimestamp,&end_time_b,right,6,(running_b  && !hand_b && show_time),end_b);
+				
+				
 			}
 			
 			
 			if(update_display)
 			{
-				
 				if(position_main == 255)
-				position_main = 4;
-				position_main %= 5;
-				lcd_gotoxy(left,0,port_expander_present);
-				if(PORTB.IN & PIN2_bm)
-				strcpy(Str1,"120 mm") ;
+					position_main = 4;
+					position_main %= 5;
+				//if(show_debug)
+				//{
+					//if(position_main == 255)
+					//position_main = 4;
+					//position_main %= 5;
+		//
+				//}
+				//else
+				//{
+					//if(position_main == 255)
+					//position_main = 2;
+					//position_main %= 3;
+				//}
+				
+				if(show_profile > 0)
+				{
+					if(show_profile >1)
+					{
+						lcd_gotoxy(left,0,port_expander_present);
+						size_string(p_Profile_a->erlenmayer_size);
+						lcd_gotoxy(right,0,port_expander_present);
+						size_string(p_Profile_b->erlenmayer_size);
+						//lcd_gotoxy(0,1,port_expander_present);
+					}
+					else
+					{
+						if(first_line_profile)
+						{
+							lcd_gotoxy(left,0,port_expander_present);
+							size_string(p_Profile_a->erlenmayer_size);
+							lcd_gotoxy(right,0,port_expander_present);
+							size_string(p_Profile_b->erlenmayer_size);
+							//lcd_gotoxy(0,1,port_expander_present);
+						}
+						else
+						{
+							lcd_gotoxy(left,0,port_expander_present);
+							if(PORTB.IN & PIN2_bm)
+							strcpy(Str1,"120 mm  ") ;
+							else
+							strcpy(Str1,"140 mm  ") ;
+							lcd_puts(Str1);
+							lcd_gotoxy(right,0,port_expander_present);
+							if(PORTB.IN & PIN1_bm)
+							strcpy(Str1,"120 mm  ") ;
+							else
+							strcpy(Str1,"140 mm  ") ;
+							lcd_puts(Str1);
+							//lcd_gotoxy(0,1,port_expander_present);
+							
+							
+						}
+						
+					}
+				}
 				else
-				strcpy(Str1,"140 mm") ;
-				lcd_puts(Str1);
-				lcd_gotoxy(right,0,port_expander_present);
-				if(PORTB.IN & PIN1_bm)
-				strcpy(Str1,"120 mm") ;
-				else
-				strcpy(Str1,"140 mm") ;
-				lcd_puts(Str1);
-				lcd_gotoxy(0,1,port_expander_present);
+				{
+					lcd_gotoxy(left,0,port_expander_present);
+					if(PORTB.IN & PIN2_bm)
+					strcpy(Str1,"120 mm  ") ;
+					else
+					strcpy(Str1,"140 mm  ") ;
+					lcd_puts(Str1);
+					lcd_gotoxy(right,0,port_expander_present);
+					if(PORTB.IN & PIN1_bm)
+					strcpy(Str1,"120 mm  ") ;
+					else
+					strcpy(Str1,"140 mm  ") ;
+					lcd_puts(Str1);
+					//lcd_gotoxy(0,1,port_expander_present);
+				}
+				
 				uint16_t pwm_a = 0x3E8 - TCD0.CCA;
 				uint16_t pwm_b = 0x3E8 - TCD0.CCB;
 				char int_buffer[4];
 				update_display = false;
-				if((avg_voltage_a/1000) <10 )
+				if(show_debug)
 				{
-					strcpy(text_buffer," ");
-					utoa(calc_voltage(avg_voltage_a)/1000,int_buffer,10);
-					strcat(text_buffer,int_buffer);
-				}
-				else
-					utoa(calc_voltage(avg_voltage_a)/1000,text_buffer,10);
-				char helper[] = " V";
-				strcat(text_buffer,",");
-				utoa(calc_voltage(avg_voltage_a)%1000,int_buffer,10);
-				strcat(text_buffer,int_buffer);
-				strcat(text_buffer,helper);
-				lcd_puts(text_buffer);
-				lcd_gotoxy(right,1,port_expander_present);
-				if((avg_voltage_b/1000) < 10 )
-				{
-					strcpy(text_buffer," ");
-					utoa(calc_voltage(avg_voltage_b)/1000,int_buffer,10);
-					strcat(text_buffer,int_buffer);
-				}
-				else
-				utoa(calc_voltage(avg_voltage_b)/1000,text_buffer,10);
-				strcat(text_buffer,",");
-				utoa(calc_voltage(avg_voltage_b)%1000,int_buffer,10);
-				strcat(text_buffer,int_buffer);
-				strcat(text_buffer,helper);
-				lcd_puts(text_buffer);
-				avg_voltage_a = 0;
-				avg_voltage_b = 0;
-				lcd_gotoxy(left,2,port_expander_present);
-				if(pwm_a < 10)
-					lcd_puts(" ");
-				if(pwm_a < 100)
-					lcd_puts(" ");	
-				if(pwm_a < 1000)
-					lcd_puts(" ");
-				utoa(pwm_a/10,text_buffer,10);
-				strcat(text_buffer,",");
-				utoa(pwm_a%10,int_buffer,10);
-				strcat(text_buffer,int_buffer);
-				strcat(text_buffer," %");
-				lcd_puts(text_buffer);
-				lcd_gotoxy(right,2,port_expander_present);
-				if(pwm_b < 10)
-				lcd_puts(" ");
-				if(pwm_b < 100)
-				lcd_puts(" ");
-				if(pwm_b < 1000)
-				lcd_puts(" ");
-				utoa(pwm_b/10,text_buffer,10);
-				strcat(text_buffer,",");
-				utoa(pwm_b%10,int_buffer,10);
-				strcat(text_buffer,int_buffer);
-				strcat(text_buffer," %");
-				lcd_puts(text_buffer);
-				cli();
-				utoa(RPM_a,text_buffer,10);
-				sei();
-				strcat(text_buffer," RPM");
-				lcd_gotoxy(left,3,port_expander_present);
-				if(RPM_a < 10)
-					lcd_puts(" ");
-				if(RPM_a < 100)
-					lcd_puts(" ");
-				if(RPM_a < 1000)
-					lcd_puts(" ");
-				lcd_puts(text_buffer);
-				utoa(Sollwert_RPM_a,text_buffer,10);
-				lcd_gotoxy(left,4,port_expander_present);
-				if(Sollwert_RPM_a < 10)
-					lcd_puts(" ");
-				if(Sollwert_RPM_a < 100)
-					lcd_puts(" ");
-				if(Sollwert_RPM_a < 1000)
-					lcd_puts(" ");
-				strcat(text_buffer," RPM");
-				if(change_speed_a)
-					lcd_puts_invert(text_buffer);
-				else
-					lcd_puts(text_buffer);
-				cli();
-				utoa(RPM_b,text_buffer,10);
-				sei();
-				strcat(text_buffer," RPM");
-				lcd_gotoxy(right,3,port_expander_present);
-				if(RPM_b < 10)
-				lcd_puts(" ");
-				if(RPM_b < 100)
-				lcd_puts(" ");
-				if(RPM_b < 1000)
-				lcd_puts(" ");
-				lcd_puts(text_buffer);
-				utoa(Sollwert_RPM_b,text_buffer,10);
-				strcat(text_buffer," RPM");
-				lcd_gotoxy(right,4,port_expander_present);
-				if(Sollwert_RPM_b < 10)
-				lcd_puts(" ");
-				if(Sollwert_RPM_b < 100)
-				lcd_puts(" ");
-				if(Sollwert_RPM_b < 1000)
-				lcd_puts(" ");
-				if(change_speed_b)
-					lcd_puts_invert(text_buffer);
-				else
-					lcd_puts(text_buffer);
-				utoa(test,text_buffer,10);
-				if(position_main == 0 )
-				{
-					get_key_short( 1<<KEY0 );
-					lcd_gotoxy(left-1,4,port_expander_present);
-					lcd_puts(" ");
-					lcd_gotoxy(right-1,4,port_expander_present);
-					lcd_puts(" ");
-					lcd_gotoxy(left-1,7,port_expander_present);
-					lcd_puts(" ");
-					lcd_gotoxy(right-1,7,port_expander_present);
-					lcd_puts(" ");
-					lcd_gotoxy(left,7,port_expander_present);
-					if(status_a == 0)
-						lcd_puts("Auto/Aus");
-					if(status_a == 1)
-					lcd_puts("Auto/An ");
-					if(status_a == 2)
-						lcd_puts("Hand/Aus ");
-					if(status_a == 3)
-						lcd_puts("Hand/An  ");
-					if(status_a == 4)
-						lcd_puts("Reset   ");
-					lcd_gotoxy(right,7,port_expander_present);
-					if(status_b == 0)
-					lcd_puts("Auto/Aus");
-					if(status_b == 1)
-					lcd_puts("Auto/An ");
-					if(status_b == 2)
-					lcd_puts("Hand/Aus ");
-					if(status_b == 3)
-					lcd_puts("Hand/An  ");
-					if(status_b == 4)
-					lcd_puts("Reset   ");
-				}
-				if(position_main == 1)
-				{
-					if( get_key_short( 1<<KEY0 ))
+					if((avg_voltage_a/1000) <10 )
 					{
-						if(change_a)
-							change_a = false;
-						else
-							change_a = true;
-					}
-					lcd_gotoxy(left-1,4,port_expander_present);
-					lcd_puts(" ");
-					lcd_gotoxy(right-1,4,port_expander_present);
-					lcd_puts(" ");
-					lcd_gotoxy(left-1,7,port_expander_present);
-					lcd_puts(">");
-					lcd_gotoxy(right-1,7,port_expander_present);
-					lcd_puts(" ");
-					lcd_gotoxy(left,7,port_expander_present);
-					if(change_a)
-					{
-						if(status_a == 0)
-							lcd_puts_invert("Auto/Aus");
-						if(status_a == 1)
-							lcd_puts_invert("Auto/An ");
-						if(status_a == 2)
-							lcd_puts_invert("Hand/Aus");
-						if(status_a == 3)
-							lcd_puts_invert("Hand/An ");
-						if(status_a == 4)
-							lcd_puts_invert("Reset   ");
-						lcd_gotoxy(right,7,port_expander_present);
-						if(status_b == 0)
-						lcd_puts("Auto/Aus");
-						if(status_b == 1)
-						lcd_puts("Auto/An ");
-						if(status_b == 2)
-						lcd_puts("Hand/Aus");
-						if(status_b == 3)
-						lcd_puts("Hand/An ");
-						if(status_b == 4)
-						lcd_puts("Reset   ");
+						strcpy(text_buffer," ");
+						utoa(calc_voltage(avg_voltage_a)/1000,int_buffer,10);
+						strcat(text_buffer,int_buffer);
 					}
 					else
+					utoa(calc_voltage(avg_voltage_a)/1000,text_buffer,10);
+					char helper[] = " V";
+					strcat(text_buffer,",");
+					utoa(calc_voltage(avg_voltage_a)%1000,int_buffer,10);
+					strcat(text_buffer,int_buffer);
+					strcat(text_buffer,helper);
+					lcd_gotoxy(left,1,port_expander_present);
+					lcd_puts(text_buffer);
+					lcd_gotoxy(right,1,port_expander_present);
+					if((avg_voltage_b/1000) < 10 )
 					{
+						strcpy(text_buffer," ");
+						utoa(calc_voltage(avg_voltage_b)/1000,int_buffer,10);
+						strcat(text_buffer,int_buffer);
+					}
+					else
+					utoa(calc_voltage(avg_voltage_b)/1000,text_buffer,10);
+					strcat(text_buffer,",");
+					utoa(calc_voltage(avg_voltage_b)%1000,int_buffer,10);
+					strcat(text_buffer,int_buffer);
+					strcat(text_buffer,helper);
+					lcd_puts(text_buffer);
+					avg_voltage_a = 0;
+					avg_voltage_b = 0;
+					lcd_gotoxy(left,2,port_expander_present);
+					if(pwm_a < 10)
+					lcd_puts(" ");
+					if(pwm_a < 100)
+					lcd_puts(" ");
+					if(pwm_a < 1000)
+					lcd_puts(" ");
+					utoa(pwm_a/10,text_buffer,10);
+					strcat(text_buffer,",");
+					utoa(pwm_a%10,int_buffer,10);
+					strcat(text_buffer,int_buffer);
+					strcat(text_buffer," %");
+					lcd_puts(text_buffer);
+					lcd_gotoxy(right,2,port_expander_present);
+					if(pwm_b < 10)
+					lcd_puts(" ");
+					if(pwm_b < 100)
+					lcd_puts(" ");
+					if(pwm_b < 1000)
+					lcd_puts(" ");
+					utoa(pwm_b/10,text_buffer,10);
+					strcat(text_buffer,",");
+					utoa(pwm_b%10,int_buffer,10);
+					strcat(text_buffer,int_buffer);
+					strcat(text_buffer," %");
+					lcd_puts(text_buffer);
+					cli();
+					utoa(RPM_a,text_buffer,10);
+					sei();
+					strcat(text_buffer," RPM");
+					lcd_gotoxy(left,3,port_expander_present);
+					if(RPM_a < 10)
+					lcd_puts(" ");
+					if(RPM_a < 100)
+					lcd_puts(" ");
+					if(RPM_a < 1000)
+					lcd_puts(" ");
+					lcd_puts(text_buffer);
+					utoa(Sollwert_RPM_a,text_buffer,10);
+					lcd_gotoxy(left,4,port_expander_present);
+					if(Sollwert_RPM_a < 10)
+					lcd_puts(" ");
+					if(Sollwert_RPM_a < 100)
+					lcd_puts(" ");
+					if(Sollwert_RPM_a < 1000)
+					lcd_puts(" ");
+					strcat(text_buffer," RPM");
+					if(change_speed_a)
+					lcd_puts_invert(text_buffer);
+					else
+					lcd_puts(text_buffer);
+					cli();
+					utoa(RPM_b,text_buffer,10);
+					sei();
+					strcat(text_buffer," RPM");
+					lcd_gotoxy(right,3,port_expander_present);
+					if(RPM_b < 10)
+					lcd_puts(" ");
+					if(RPM_b < 100)
+					lcd_puts(" ");
+					if(RPM_b < 1000)
+					lcd_puts(" ");
+					lcd_puts(text_buffer);
+					utoa(Sollwert_RPM_b,text_buffer,10);
+					strcat(text_buffer," RPM");
+					lcd_gotoxy(right,4,port_expander_present);
+					if(Sollwert_RPM_b < 10)
+					lcd_puts(" ");
+					if(Sollwert_RPM_b < 100)
+					lcd_puts(" ");
+					if(Sollwert_RPM_b < 1000)
+					lcd_puts(" ");
+					if(change_speed_b)
+					lcd_puts_invert(text_buffer);
+					else
+					lcd_puts(text_buffer);
+					utoa(test,text_buffer,10);
+					if(position_main == 0 )
+					{
+						get_key_short( 1<<KEY0 );
+						lcd_gotoxy(left-1,4,port_expander_present);
+						lcd_puts(" ");
+						lcd_gotoxy(right-1,4,port_expander_present);
+						lcd_puts(" ");
+						lcd_gotoxy(left-1,7,port_expander_present);
+						lcd_puts(" ");
+						lcd_gotoxy(right-1,7,port_expander_present);
+						lcd_puts(" ");
+						lcd_gotoxy(left,7,port_expander_present);
 						if(status_a == 0)
-							lcd_puts("Auto/Aus");
+						lcd_puts("Aus    ");
 						if(status_a == 1)
-							lcd_puts("Auto/An ");
+						lcd_puts("Auto   ");
 						if(status_a == 2)
-							lcd_puts("Hand/Aus");
+						lcd_puts("Hand   ");
 						if(status_a == 3)
-							lcd_puts("Hand/An ");
+						lcd_puts("Restart");
 						if(status_a == 4)
-							lcd_puts("Reset   ");
+						lcd_puts("Reset  ");
 						lcd_gotoxy(right,7,port_expander_present);
 						if(status_b == 0)
-						lcd_puts("Auto/Aus");
+						lcd_puts("Aus    ");
 						if(status_b == 1)
-						lcd_puts("Auto/An ");
+						lcd_puts("Auto   ");
 						if(status_b == 2)
-						lcd_puts("Hand/Aus");
+						lcd_puts("Hand   ");
 						if(status_b == 3)
-						lcd_puts("Hand/An ");
+						lcd_puts("Restart");
 						if(status_b == 4)
-						lcd_puts("Reset   ");
+						lcd_puts("Reset  ");
 					}
-					
-					
-				}
-				if(position_main == 2)
-				{
-					if( get_key_short( 1<<KEY0 ))
+					if(position_main == 1)
 					{
-						if(change_b)
-						change_b = false;
+						if( get_key_short( 1<<KEY0 ))
+						{
+							if(change_a)
+							{
+								if(status_a == 1 || status_a == 3)
+								Sollwert_a = 0;
+								change_a = false;
+							}
+							else
+							change_a = true;
+						}
+						lcd_gotoxy(left-1,4,port_expander_present);
+						lcd_puts(" ");
+						lcd_gotoxy(right-1,4,port_expander_present);
+						lcd_puts(" ");
+						lcd_gotoxy(left-1,7,port_expander_present);
+						lcd_puts(">");
+						lcd_gotoxy(right-1,7,port_expander_present);
+						lcd_puts(" ");
+						lcd_gotoxy(left,7,port_expander_present);
+						if(change_a)
+						{
+							if(status_a == 0)
+							lcd_puts_invert("Aus    ");
+							if(status_a == 1)
+							lcd_puts_invert("Auto   ");
+							if(status_a == 2)
+							lcd_puts_invert("Hand   ");
+							if(status_a == 3)
+							lcd_puts_invert("Restart");
+							if(status_a == 4)
+							lcd_puts_invert("Reset  ");
+							lcd_gotoxy(right,7,port_expander_present);
+							if(status_b == 0)
+							lcd_puts("Aus    ");
+							if(status_b == 1)
+							lcd_puts("Auto   ");
+							if(status_b == 2)
+							lcd_puts("Hand   ");
+							if(status_b == 3)
+							lcd_puts("Restart");
+							if(status_b == 4)
+							lcd_puts("Reset  ");
+						}
 						else
-						change_b = true;
-					}
-					lcd_gotoxy(left-1,4,port_expander_present);
-					lcd_puts(" ");
-					lcd_gotoxy(right-1,4,port_expander_present);
-					lcd_puts(" ");
-					lcd_gotoxy(left-1,7,port_expander_present);
-					lcd_puts(" ");
-					lcd_gotoxy(right-1,7,port_expander_present);
-					lcd_puts(">");
-					lcd_gotoxy(left,7,port_expander_present);
-					if(change_b)
-					{
-						if(status_a == 0)
-						lcd_puts("Auto/Aus");
-						if(status_a == 1)
-						lcd_puts("Auto/An ");
-						if(status_a == 2)
-						lcd_puts("Hand/Aus");
-						if(status_a == 3)
-						lcd_puts("Hand/An ");
-						if(status_a == 4)
-						lcd_puts("Reset   ");
-						lcd_gotoxy(right,7,port_expander_present);
-						if(status_b == 0)
-						lcd_puts_invert("Auto/Aus");
-						if(status_b == 1)
-						lcd_puts_invert("Auto/An ");
-						if(status_b == 2)
-						lcd_puts_invert("Hand/Aus");
-						if(status_b == 3)
-						lcd_puts_invert("Hand/An ");
-						if(status_b == 4)
-						lcd_puts_invert("Reset   ");
+						{
+							if(status_a == 0)
+							lcd_puts("Aus    ");
+							if(status_a == 1)
+							lcd_puts("Auto   ");
+							if(status_a == 2)
+							lcd_puts("Hand   ");
+							if(status_a == 3)
+							lcd_puts("Restart");
+							if(status_a == 4)
+							lcd_puts("Reset  ");
+							lcd_gotoxy(right,7,port_expander_present);
+							if(status_b == 0)
+							lcd_puts("Aus    ");
+							if(status_b == 1)
+							lcd_puts("Auto   ");
+							if(status_b == 2)
+							lcd_puts("Hand   ");
+							if(status_b == 3)
+							lcd_puts("Restart");
+							if(status_b == 4)
+							lcd_puts("Reset  ");
+						}
+						
 						
 					}
-					else
+					if(position_main == 2)
 					{
+						if( get_key_short( 1<<KEY0 ))
+						{
+							if(change_b)
+							{
+								if(status_b == 1 || status_b == 3)
+								Sollwert_b = 0;
+								change_b = false;
+							}
+							
+							else
+							change_b = true;
+						}
+						lcd_gotoxy(left-1,4,port_expander_present);
+						lcd_puts(" ");
+						lcd_gotoxy(right-1,4,port_expander_present);
+						lcd_puts(" ");
+						lcd_gotoxy(left-1,7,port_expander_present);
+						lcd_puts(" ");
+						lcd_gotoxy(right-1,7,port_expander_present);
+						lcd_puts(">");
+						lcd_gotoxy(left,7,port_expander_present);
+						if(change_b)
+						{
+							if(status_a == 0)
+							lcd_puts("Aus    ");
+							if(status_a == 1)
+							lcd_puts("Auto   ");
+							if(status_a == 2)
+							lcd_puts("Hand   ");
+							if(status_a == 3)
+							lcd_puts("Restart");
+							if(status_a == 4)
+							lcd_puts("Reset  ");
+							lcd_gotoxy(right,7,port_expander_present);
+							if(status_b == 0)
+							lcd_puts_invert("Aus    ");
+							if(status_b == 1)
+							lcd_puts_invert("Auto   ");
+							if(status_b == 2)
+							lcd_puts_invert("Hand   ");
+							if(status_b == 3)
+							lcd_puts_invert("Restart");
+							if(status_b == 4)
+							lcd_puts_invert("Reset  ");
+							
+						}
+						else
+						{
+							if(status_a == 0)
+							lcd_puts("Aus    ");
+							if(status_a == 1)
+							lcd_puts("Auto   ");
+							if(status_a == 2)
+							lcd_puts("Hand   ");
+							if(status_a == 3)
+							lcd_puts("Restart");
+							if(status_a == 4)
+							lcd_puts("Reset   ");
+							lcd_gotoxy(right,7,port_expander_present);
+							if(status_b == 0)
+							lcd_puts("Aus    ");
+							if(status_b == 1)
+							lcd_puts("Auto   ");
+							if(status_b == 2)
+							lcd_puts("Hand   ");
+							if(status_b == 3)
+							lcd_puts("Restart");
+							if(status_b == 4)
+							lcd_puts("Reset  ");
+						}
+						
+					}
+					if(position_main == 3)
+					{
+						if( get_key_short( 1<<KEY0 ))
+						{
+							if(change_speed_a)
+							change_speed_a = false;
+							else
+							change_speed_a = true;
+						}
+						lcd_gotoxy(left-1,2,port_expander_present);
+						lcd_puts(">");
+						lcd_gotoxy(right-1,2,port_expander_present);
+						lcd_puts(" ");
+						lcd_gotoxy(left-1,7,port_expander_present);
+						lcd_puts(" ");
+						lcd_gotoxy(right-1,7,port_expander_present);
+						lcd_puts(" ");
+						
+					}
+					if(position_main == 4)
+					{
+						if( get_key_short( 1<<KEY0 ))
+						{
+							if(change_speed_b)
+							change_speed_b = false;
+							else
+							change_speed_b = true;
+						}
+						lcd_gotoxy(left-1,2,port_expander_present);
+						lcd_puts(" ");
+						lcd_gotoxy(right-1,2,port_expander_present);
+						lcd_puts(">");
+						lcd_gotoxy(left-1,7,port_expander_present);
+						lcd_puts(" ");
+						lcd_gotoxy(right-1,7,port_expander_present);
+						lcd_puts(" ");
+						
+					}
+					
+				}
+				else  
+				{
+					lcd_gotoxy(left,1,port_expander_present);
+					utoa(Sollwert_RPM_a,text_buffer,10);
+					if(Sollwert_RPM_a < 10)
+					lcd_puts(" ");
+					if(Sollwert_RPM_a < 100)
+					lcd_puts(" ");
+					if(Sollwert_RPM_a < 1000)
+					lcd_puts(" ");
+					strcat(text_buffer," RPM");
+					if(change_speed_a)
+					lcd_puts_invert(text_buffer);
+					else
+					lcd_puts(text_buffer);
+					cli();
+					utoa(RPM_b,text_buffer,10);
+					sei();
+					strcat(text_buffer," RPM");
+					lcd_gotoxy(right,1,port_expander_present);
+					utoa(Sollwert_RPM_b,text_buffer,10);
+					strcat(text_buffer," RPM");
+					lcd_gotoxy(right,1,port_expander_present);
+					if(Sollwert_RPM_b < 10)
+					lcd_puts(" ");
+					if(Sollwert_RPM_b < 100)
+					lcd_puts(" ");
+					if(Sollwert_RPM_b < 1000)
+					lcd_puts(" ");
+					if(change_speed_b)
+					lcd_puts_invert(text_buffer);
+					else
+					lcd_puts(text_buffer);
+					
+					if(position_main == 0 )
+					{
+						get_key_short( 1<<KEY0 );
+						lcd_gotoxy(left-1,7,port_expander_present);
+						lcd_puts(" ");
+						lcd_gotoxy(right-1,7,port_expander_present);
+						lcd_puts(" ");
+						lcd_gotoxy(left,7,port_expander_present);
 						if(status_a == 0)
-						lcd_puts("Auto/Aus");
+						lcd_puts("Aus    ");
 						if(status_a == 1)
-						lcd_puts("Auto/An ");
+						lcd_puts("Auto   ");
 						if(status_a == 2)
-						lcd_puts("Hand/Aus");
+						lcd_puts("Hand   ");
 						if(status_a == 3)
-						lcd_puts("Hand/An ");
+						lcd_puts("Restart");
 						if(status_a == 4)
 						lcd_puts("Reset   ");
 						lcd_gotoxy(right,7,port_expander_present);
 						if(status_b == 0)
-						lcd_puts("Auto/Aus");
+						lcd_puts("Aus    ");
 						if(status_b == 1)
-						lcd_puts("Auto/An ");
+						lcd_puts("Auto   ");
 						if(status_b == 2)
-						lcd_puts("Hand/Aus");
+						lcd_puts("Hand   ");
 						if(status_b == 3)
-						lcd_puts("Hand/An ");
+						lcd_puts("Restart");
 						if(status_b == 4)
-						lcd_puts("Reset   ");
+						lcd_puts("Reset  ");
 					}
-					
-				}
-				if(position_main == 3)
-				{
-					if( get_key_short( 1<<KEY0 ))
+					if(position_main == 1)
 					{
-						if(change_speed_a)
-							change_speed_a = false;
+						if( get_key_short( 1<<KEY0 ))
+						{
+							if(change_a)
+							{
+								if(status_a == 1 || status_a == 3)
+								Sollwert_a = 0;
+								change_a = false;
+							}
+							else
+							change_a = true;
+						}
+						lcd_gotoxy(left-1,1,port_expander_present);
+						lcd_puts(" ");
+						lcd_gotoxy(right-1,1,port_expander_present);
+						lcd_puts(" ");
+						lcd_gotoxy(left-1,7,port_expander_present);
+						lcd_puts(">");
+						lcd_gotoxy(right-1,7,port_expander_present);
+						lcd_puts(" ");
+						lcd_gotoxy(left,7,port_expander_present);
+						if(change_a)
+						{
+							if(status_a == 0)
+							lcd_puts_invert("Aus    ");
+							if(status_a == 1)
+							lcd_puts_invert("Auto   ");
+							if(status_a == 2)
+							lcd_puts_invert("Hand   ");
+							if(status_a == 3)
+							lcd_puts_invert("Restart");
+							if(status_a == 4)
+							lcd_puts_invert("Reset  ");
+							lcd_gotoxy(right,7,port_expander_present);
+							if(status_b == 0)
+							lcd_puts("Aus    ");
+							if(status_b == 1)
+							lcd_puts("Auto   ");
+							if(status_b == 2)
+							lcd_puts("Hand   ");
+							if(status_b == 3)
+							lcd_puts("Restart");
+							if(status_b == 4)
+							lcd_puts("Reset  ");
+						}
 						else
-							change_speed_a = true;
+						{
+							if(status_a == 0)
+							lcd_puts("Aus    ");
+							if(status_a == 1)
+							lcd_puts("Auto   ");
+							if(status_a == 2)
+							lcd_puts("Hand   ");
+							if(status_a == 3)
+							lcd_puts("Restart");
+							if(status_a == 4)
+							lcd_puts("Reset   ");
+							lcd_gotoxy(right,7,port_expander_present);
+							if(status_b == 0)
+							lcd_puts("Aus    ");
+							if(status_b == 1)
+							lcd_puts("Auto   ");
+							if(status_b == 2)
+							lcd_puts("Hand   ");
+							if(status_b == 3)
+							lcd_puts("Restart");
+							if(status_b == 4)
+							lcd_puts("Reset  ");
+						}
 					}
-					lcd_gotoxy(left-1,4,port_expander_present);
-					lcd_puts(">");
-					lcd_gotoxy(right-1,4,port_expander_present);
-					lcd_puts(" ");
-					lcd_gotoxy(left-1,7,port_expander_present);
-					lcd_puts(" ");
-					lcd_gotoxy(right-1,7,port_expander_present);
-					lcd_puts(" ");
+						if(position_main == 2)
+						{
+							if( get_key_short( 1<<KEY0 ))
+							{
+								if(change_b)
+								{
+									if(status_b == 1 || status_b == 3)
+									Sollwert_b = 0;
+									change_b = false;
+								}
+								
+								else
+								change_b = true;
+							}
+							lcd_gotoxy(left-1,1,port_expander_present);
+							lcd_puts(" ");
+							lcd_gotoxy(right-1,1,port_expander_present);
+							lcd_puts(" ");
+							lcd_gotoxy(left-1,7,port_expander_present);
+							lcd_puts(" ");
+							lcd_gotoxy(right-1,7,port_expander_present);
+							lcd_puts(">");
+							lcd_gotoxy(left,7,port_expander_present);
+							if(change_b)
+							{
+								if(status_a == 0)
+								lcd_puts("Aus    ");
+								if(status_a == 1)
+								lcd_puts("Auto   ");
+								if(status_a == 2)
+								lcd_puts("Hand   ");
+								if(status_a == 3)
+								lcd_puts("Restart");
+								if(status_a == 4)
+								lcd_puts("Reset  ");
+								lcd_gotoxy(right,7,port_expander_present);
+								if(status_b == 0)
+								lcd_puts_invert("Aus    ");
+								if(status_b == 1)
+								lcd_puts_invert("Auto   ");
+								if(status_b == 2)
+								lcd_puts_invert("Hand   ");
+								if(status_b == 3)
+								lcd_puts_invert("Restart");
+								if(status_b == 4)
+								lcd_puts_invert("Reset  ");
+								
+							}
+							else
+							{
+								if(status_a == 0)
+								lcd_puts("Aus    ");
+								if(status_a == 1)
+								lcd_puts("Auto   ");
+								if(status_a == 2)
+								lcd_puts("Hand   ");
+								if(status_a == 3)
+								lcd_puts("Restart");
+								if(status_a == 4)
+								lcd_puts("Reset   ");
+								lcd_gotoxy(right,7,port_expander_present);
+								if(status_b == 0)
+								lcd_puts("Aus    ");
+								if(status_b == 1)
+								lcd_puts("Auto   ");
+								if(status_b == 2)
+								lcd_puts("Hand   ");
+								if(status_b == 3)
+								lcd_puts("Restart");
+								if(status_b == 4)
+								lcd_puts("Reset  ");
+							}
+							
+						}
+						if(position_main == 3)
+						{
+							if( get_key_short( 1<<KEY0 ))
+							{
+								if(change_speed_a)
+								change_speed_a = false;
+								else
+								change_speed_a = true;
+							}
+							lcd_gotoxy(left-1,1,port_expander_present);
+							lcd_puts(">");
+							lcd_gotoxy(right-1,1,port_expander_present);
+							lcd_puts(" ");
+							lcd_gotoxy(left-1,7,port_expander_present);
+							lcd_puts(" ");
+							lcd_gotoxy(right-1,7,port_expander_present);
+							lcd_puts(" ");
+							
+						}
+						if(position_main == 4)
+						{
+							if( get_key_short( 1<<KEY0 ))
+							{
+								if(change_speed_b)
+								change_speed_b = false;
+								else
+								change_speed_b = true;
+							}
+							lcd_gotoxy(left-1,1,port_expander_present);
+							lcd_puts(" ");
+							lcd_gotoxy(right-1,1,port_expander_present);
+							lcd_puts(">");
+							lcd_gotoxy(left-1,7,port_expander_present);
+							lcd_puts(" ");
+							lcd_gotoxy(right-1,7,port_expander_present);
+							lcd_puts(" ");
+							
+						}
+						
+						
+					
 					
 				}
-				if(position_main == 4)
-				{
-					if( get_key_short( 1<<KEY0 ))
-					{
-						if(change_speed_b)
-						change_speed_b = false;
-						else
-						change_speed_b = true;
-					}
-					lcd_gotoxy(left-1,4,port_expander_present);
-					lcd_puts(" ");
-					lcd_gotoxy(right-1,4,port_expander_present);
-					lcd_puts(">");
-					lcd_gotoxy(left-1,7,port_expander_present);
-					lcd_puts(" ");
-					lcd_gotoxy(right-1,7,port_expander_present);
-					lcd_puts(" ");
-					
-				}
+				
+				
 				
 			}
 		}
@@ -2832,19 +3425,21 @@ int main(void)
 							}
 						}
 						
+						if(get_key_long(1<<KEY0))
+						{
+							menu.menu_point = 0;
+							screen_clear = true;
+							p_Profile_a->CRC_value = calculate_crc32_checksum((unsigned char *)p_Profile_a,sizeof(Speed_profile_t)-4);
+							write_profile(p_Profile_a,0,TWI_FRAM_present,offset_profile_a);
+						}
+						
 						if(get_key_short( 1<<KEY0 ))
 						{
-							if(position == 0)
-							{
-								menu.menu_point = 0;
-								screen_clear = true;
-								p_Profile_a->CRC_value = calculate_crc32_checksum((unsigned char *)p_Profile_a,sizeof(Speed_profile_t)-4);
-								write_profile(p_Profile_a,0,TWI_FRAM_present,offset_profile_a);
-							}
-							else
-							{
-								menu.sub_menu = position <<4;
-							}
+							
+							menu.sub_menu = position <<4;
+							if(menu.sub_menu == 0)
+								menu.sub_menu = 0x01;
+
 						}
 						
 						
@@ -2873,19 +3468,22 @@ int main(void)
 							}
 						}
 						
+						
+						if(get_key_long(1<<KEY0))
+						{
+							menu.menu_point = 0;
+							screen_clear = true;
+							p_Profile_b->CRC_value = calculate_crc32_checksum((unsigned char *)p_Profile_b,sizeof(Speed_profile_t)-4);
+							write_profile(p_Profile_b,0,TWI_FRAM_present,offset_profile_b);
+						}
+						
 						if(get_key_short( 1<<KEY0 ))
 						{
-							if(position == 0)
-							{
-								p_Profile_b->CRC_value = calculate_crc32_checksum((unsigned char *)p_Profile_b,sizeof(Speed_profile_t)-4);
-								write_profile(p_Profile_b,0,TWI_FRAM_present,offset_profile_b);
-								menu.menu_point = 0;
-								screen_clear = true;
-							}
-							else
-							{
-								menu.sub_menu = position <<4;
-							}
+							
+							menu.sub_menu = position <<4;
+							if(menu.sub_menu == 0)
+							menu.sub_menu = 0x01;
+
 						}
 						
 						
@@ -2914,19 +3512,22 @@ int main(void)
 							}
 						}
 						
-						if(get_key_short( 1<<KEY0 ))
+						if(get_key_long(1<<KEY0))
 						{
-							if(position == 0)
-							{
+							
 								menu.menu_point = 0;
 								screen_clear = true;
 								p_profile_mod->CRC_value = calculate_crc32_checksum((unsigned char *)p_profile_mod,sizeof(Speed_profile_t)-4);
 								write_profile(p_profile_mod,ID_mod,TWI_FRAM_present,offset_profiles);
-							}
-							else
-							{
-								menu.sub_menu = position <<4;
-							}
+						
+						}
+						if(get_key_short( 1<<KEY0 ))
+						{
+							
+							menu.sub_menu = position <<4;
+							if(menu.sub_menu == 0)
+							menu.sub_menu = 0x01;
+
 						}
 						
 						
