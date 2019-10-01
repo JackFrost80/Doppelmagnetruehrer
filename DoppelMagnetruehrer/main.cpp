@@ -26,7 +26,7 @@ extern "C"
 }
 
 
-#define Build "0.8b"
+#define Build "0.95b"
 #define CLK_Prescaler 0x00
 #define PLL_Faktor 16
 #define CPU_SPEED 32000000UL
@@ -92,9 +92,11 @@ p_Speed_profile_t  p_Profile_a = &Profile_a;
 Speed_profile_t Profile_b;
 p_Speed_profile_t  p_Profile_b = &Profile_b;
 regulator_parameters_t parameter_a;
-p_regulator_parameters_t p_parameter_a = &parameter_a;;
+p_regulator_parameters_t p_parameter_a = &parameter_a;
 regulator_parameters_t parameter_b;
-p_regulator_parameters_t p_parameter_b = &parameter_b;;
+p_regulator_parameters_t p_parameter_b = &parameter_b;
+system_settings_t settings;
+p_system_settings_t p_settings = &settings;
 uint8_t profile_ID_a EEMEM = 0;
 uint8_t profile_ID_b EEMEM = 0;
 uint8_t type_of_encoder_EE EEMEM =  4;
@@ -583,6 +585,109 @@ void info_data(uint16_t free_ram,char *int_buffer,bool *screen_clear_)
 		lcd_puts("Build: ");
 		lcd_puts(Build);
 	}
+	
+}
+
+void change_system_settings(p_system_settings_t paramters_, uint8_t *position_,char *int_buffer,bool *screen_clear_,uint8_t *old_position_)
+{
+	if(*screen_clear_)
+	{
+		*screen_clear_ = false;
+		lcd_clrscr(port_expander_present);
+		lcd_gotoxy(1,0,port_expander_present);
+		lcd_puts("Einstellungen");
+		lcd_gotoxy(1,1,port_expander_present);
+		lcd_puts("Encoder: ");
+		utoa(paramters_->type_of_encoder,int_buffer,10);
+		lcd_puts(int_buffer);
+		lcd_gotoxy(1,2,port_expander_present);
+		lcd_puts("Debug Mode: ");
+		utoa(paramters_->show_debug,int_buffer,10);
+		lcd_puts(int_buffer);
+		lcd_gotoxy(1,3,port_expander_present);
+		lcd_puts("Profiletype: ");
+		utoa(paramters_->show_profile,int_buffer,10);
+		lcd_puts(int_buffer);
+		
+	}
+	if(menu.sub_menu >0)
+	{
+		switch(menu.sub_menu)
+		{
+			case 0x10:
+			{
+				if(encode_read2())
+				if(paramters_->type_of_encoder < 4)
+					paramters_->type_of_encoder <<= 1;
+				else
+					paramters_ ->type_of_encoder = 1;
+				lcd_gotoxy(9,1,port_expander_present);
+				utoa(paramters_->type_of_encoder,int_buffer,10);
+				lcd_puts_invert(int_buffer);
+				if( get_key_short( 1<<KEY0 ))
+				{
+					
+					*screen_clear_ = true;
+					*position_ = 1;
+					*old_position_ = 2;
+					menu.sub_menu = 0;
+				}
+				
+			}
+			break;
+			case 0x20:
+			{
+				paramters_->show_debug += encode_read2();
+				paramters_->show_debug & 0x01;
+				lcd_gotoxy(12,2,port_expander_present);
+				utoa(paramters_->show_debug,int_buffer,10);
+				lcd_puts_invert(int_buffer);
+				if( get_key_short( 1<<KEY0 ))
+				{
+					
+					*screen_clear_ = true;
+					*position_ = 1;
+					*old_position_ = 2;
+					menu.sub_menu = 0;
+				}
+				
+			}
+			break;
+			case 0x30:
+			{
+				paramters_->show_profile += encode_read2();
+				if(paramters_->show_profile > 250)
+					paramters_->show_profile = 2;
+				paramters_->show_profile %= 3;
+				lcd_gotoxy(13,3,port_expander_present);
+				utoa(paramters_->show_profile,int_buffer,10);
+				lcd_puts_invert(int_buffer);
+				if( get_key_short( 1<<KEY0 ))
+				{
+					
+					*screen_clear_ = true;
+					*position_ = 1;
+					*old_position_ = 2;
+					menu.sub_menu = 0;
+				}
+				
+			}
+			break;
+			default:
+			{
+				if( get_key_short( 1<<KEY0 ))
+				{
+					
+					*screen_clear_ = true;
+					*position_ = 1;
+					*old_position_ = 2;
+					menu.sub_menu = 0;
+				}
+			}
+			break;
+		}
+	}
+	
 	
 }
 
@@ -1661,7 +1766,7 @@ int8_t encode_read1( void )         // read single step encoders
 
 int8_t encode_read2( void )         // read two step encoders
 {
-	switch(type_of_encoder)
+	switch(p_settings->type_of_encoder)
 	{
 		case 1:
 		{
@@ -1862,6 +1967,16 @@ uint16_t calc_voltage(uint16_t ADC_value)
 	return (uint16_t)helper;
 }
 
+void init_settings()
+{
+	p_settings->show_debug = 0;
+	p_settings->type_of_encoder = 4;
+	p_settings->show_profile = 2;
+	p_settings->CRC_value = calculate_crc32_checksum((unsigned char *)p_settings,sizeof(system_settings_t)-4);
+	write_settings(p_settings,TWI_FRAM_present,offset_settings_system);
+	
+}
+
 void init_profile_a()
 {
 	p_Profile_a->speed_fast = 1100;
@@ -2036,6 +2151,9 @@ int main(void)
 	read_profile(p_Profile_b,0,TWI_FRAM_present,offset_profile_b);
 	read_param_profile(p_parameter_a,0,TWI_FRAM_present,offset_settings_regulator);
 	read_param_profile(p_parameter_b,1,TWI_FRAM_present,offset_settings_regulator);
+	read_settings(p_settings,TWI_FRAM_present,offset_settings_system);
+	if(calculate_crc32_checksum((unsigned char *)p_settings,sizeof(system_settings_t)-4) != p_settings->CRC_value)
+		init_settings(); // init settings
 	if(calculate_crc32_checksum((unsigned char *)p_Profile_a,sizeof(Speed_profile_t)-4) != p_Profile_a->CRC_value)
 		init_profile_a();
 	//if(p_Profile_a->speed_fast < 100)
@@ -2084,9 +2202,9 @@ int main(void)
 	char int_buffer[10];
     bool size_a = false;
 	bool size_b = false;
-	type_of_encoder = eeprom_read_byte(&type_of_encoder_EE);
-	show_debug = eeprom_read_byte(&show_debug_eeprom);
-	show_profile = eeprom_read_byte(&show_profile_eeprom);
+	//type_of_encoder = eeprom_read_byte(&type_of_encoder_EE);
+	//show_debug = eeprom_read_byte(&show_debug_eeprom);
+	//show_profile = eeprom_read_byte(&show_profile_eeprom);
     while (1) 
     {
 		Ram = get_mem_unused()/41;
@@ -2138,22 +2256,25 @@ int main(void)
 			cdc_rxb.flag=1;          // dann später wieder auf neue Daten testen
 			
 			switch (empfangene_Bytes[0])  // erstes Byte betrachten
-			{  case 'A': ;   // LED toggeln
+			{ 
+				case 0x10: // Reset Encoder settings
+				{
+					p_settings->type_of_encoder = 4;
+					cdc_txb.bytes=0;
+					char senden[14];
+					strcpy(senden,"Reset...\n\r");
+					memcpy(cdc_txb.data, senden, 14);
+					cdc_txb.len=14;  // ein Zeichen zu versenden
+					cdc_txb.flag=1; // versenden
+					
+				}
 				break;
-				case 'B':   Dauerantwort = ~Dauerantwort;  // Zustand toggeln
+				default: 
 				break;
-				default:  Echo=1;
 			}
 		}
 		
-		if (Echo==1)  // das Empfangene zurücksenden
-		{
-			cdc_txb.bytes=0;
-			memcpy(cdc_txb.data, empfangene_Bytes, cdc_rxb.len);
-			cdc_txb.len=cdc_rxb.len;  // ein Zeichen zu versenden
-			cdc_txb.flag=1; // versenden
-			Echo=0;
-		}
+		
 		
 		// Switch on/off and Reset side a
 		if(!change_a)
@@ -2677,9 +2798,9 @@ int main(void)
 					//position_main %= 3;
 				//}
 				
-				if(show_profile > 0)
+				if(p_settings->show_profile > 0)
 				{
-					if(show_profile >1)
+					if(p_settings->show_profile >1)
 					{
 						lcd_gotoxy(left,0,port_expander_present);
 						size_string(p_Profile_a->erlenmayer_size);
@@ -2739,7 +2860,7 @@ int main(void)
 				uint16_t pwm_b = 0x3E8 - TCD0.CCB;
 				char int_buffer[4];
 				update_display = false;
-				if(show_debug)
+				if(p_settings->show_debug)
 				{
 					if((avg_voltage_a/1000) <10 )
 					{
@@ -3357,15 +3478,17 @@ int main(void)
 						lcd_gotoxy(1,5,port_expander_present);
 						lcd_puts("Info");
 						lcd_gotoxy(1,6,port_expander_present);
+						lcd_puts("Einstellungen");
+						lcd_gotoxy(1,7,port_expander_present);
 						lcd_puts("Exit");
 						
 						if(position != old_position)
 						{
 							if(position == 255)
-								position = 6;
-							position = position%7;
+								position = 8;
+							position = position%8;
 							old_position = position;
-							for(uint8_t i= 0;i<7;i++)
+							for(uint8_t i= 0;i<8;i++)
 							{
 								lcd_gotoxy(0,i,port_expander_present);
 								if(i == position)
@@ -3380,7 +3503,7 @@ int main(void)
 						}
 						if( get_key_short( 1<<KEY0 ))
 						{
-							if(position != 6)
+							if(position != 7)
 							{
 								menu.menu_point = position | 0x10;
 								screen_clear = true;
@@ -3626,6 +3749,46 @@ int main(void)
 							
 						}
 												
+					}
+					break;
+					case 0x16:
+					{
+						change_system_settings(p_settings,&position,int_buffer,&screen_clear,&old_position);
+						if(position != old_position)
+						{
+							if(position == 255)
+							position = 3;
+							position = position%4;
+							old_position = position;
+							for(uint8_t i= 0;i<4;i++)
+							{
+								lcd_gotoxy(0,i,port_expander_present);
+								if(i == position)
+								{
+									lcd_puts(">");
+								}
+								else
+								{
+									lcd_puts(" ");
+								}
+							}
+						}
+						
+						if(get_key_short( 1<<KEY0 ))
+						{
+							if(position == 0)
+							{
+								menu.menu_point = 0;
+								screen_clear = true;
+								p_settings->CRC_value = calculate_crc32_checksum((unsigned char *)p_settings,sizeof(system_settings_t)-4);
+								write_settings(p_settings,TWI_FRAM_present,offset_settings_system);
+							}
+							else
+							{
+								menu.sub_menu = position <<4;
+							}
+						}
+						
 					}
 					break;
 					default:

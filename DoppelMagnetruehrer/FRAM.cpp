@@ -40,6 +40,20 @@ void Read_from_SPI_FRAM(uint8_t *readData,uint16_t Adress,uint8_t bytes)
 	
 }
 
+void read_settings(p_system_settings_t proile,bool use_twi,uint16_t offset)
+{
+	if(use_twi)
+	twi_read(&TWIE,(uint8_t *)proile,FRAM_I2C_ADDR,offset,sizeof(system_settings_t),0);
+	else
+	{
+		PORTC.OUTCLR = PIN4_bm;
+		Read_from_SPI_FRAM((uint8_t *)proile,offset,sizeof(system_settings_t));
+		PORTC.OUTSET = PIN4_bm;
+	}
+	
+	
+}
+
 void read_profile(p_Speed_profile_t proile,uint8_t ID,bool use_twi,uint16_t offset)
 {
 	if(use_twi)
@@ -67,6 +81,22 @@ void read_param_profile(p_regulator_parameters_t proile,uint8_t ID,bool use_twi,
 	
 	
 }
+
+void write_settings(p_system_settings_t proile,bool use_twi,uint16_t offset)
+{
+	if(use_twi)
+	twi_write(&TWIE,(uint8_t *)proile,FRAM_I2C_ADDR,offset,sizeof(system_settings_t),0,0,0);
+	else
+	{
+		set_WREN();
+		_delay_ms(2);
+		PORTC.OUTCLR = PIN4_bm;
+		Write_to_SPI_FRAM((uint8_t *)proile,offset,sizeof(system_settings_t));
+		PORTC.OUTSET = PIN4_bm;
+	}
+	
+}
+
 
 void write_profile(p_Speed_profile_t proile,uint8_t ID,bool use_twi,uint16_t offset)
 {

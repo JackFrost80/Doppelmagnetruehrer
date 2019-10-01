@@ -17,6 +17,8 @@
 #define FRAM_I2C_ADDR	0xA0
 
 void set_WREN();
+void read_settings(p_system_settings_t proile,bool use_twi,uint16_t offset);
+void write_settings(p_system_settings_t proile,bool use_twi,uint16_t offset);
 void read_profile(p_Speed_profile_t proile,uint8_t ID,bool use_twi,uint16_t offset);
 void write_profile(p_Speed_profile_t proile,uint8_t ID,bool use_twi,uint16_t offset);
 void read_param_profile(p_regulator_parameters_t proile,uint8_t ID,bool use_twi,uint16_t offset);

@@ -26,11 +26,22 @@
 #define auto_an		1
 #define manuel		3
 
+
 #define offset_settings_regulator 0x00
-#define offset_profile_a sizeof(regulator_parameters_t)*2 + offset_settings_regulator
+#define offset_settings_system  sizeof(regulator_parameters_t)*2 + offset_settings_regulator
+#define offset_profile_a sizeof(system_settings_t) + offset_settings_system
 #define offset_profile_b sizeof(Speed_profile_t) + offset_profile_a
 #define offset_profiles sizeof(Speed_profile_t) + offset_profile_b
 
+
+typedef struct system_settings {
+	
+	uint8_t show_debug;
+	uint8_t show_profile;
+	uint8_t type_of_encoder;
+	uint32_t CRC_value;
+
+} system_settings_t,*p_system_settings_t;
 
 typedef struct regulator_parameters {
 	
